@@ -87917,7 +87917,14 @@ handleMenuToggleInput(){
 
 	let gp = controller.inputSource.gamepad;
 
-	let pressed = gp.buttons[4] && gp.buttons[4].pressed;
+	// Evita stick e grilletti:
+	// 0 = trigger
+	// 1 = squeeze/grip
+	// 3 = thumbstick press
+	// 4/5 = di solito A/X e B/Y
+	let pressed =
+		(gp.buttons[5] && gp.buttons[5].pressed) ||
+		(gp.buttons[4] && gp.buttons[4].pressed);
 
 	if(pressed && !this.menuPressLock){
 		this.menuPressLock = true;
@@ -88144,21 +88151,28 @@ controls.resetView = this.createMenuButton("RESET VIEW", 0.00, -0.18, 0.28, 0.05
 
 		onStart(){
 
-			let position = this.viewer.scene.view.position.clone();
-			let direction = this.viewer.scene.view.direction;
-			direction.multiplyScalar(-1);
+	let position = this.viewer.scene.view.position.clone();
+	let direction = this.viewer.scene.view.direction;
+	direction.multiplyScalar(-1);
 
-			let target = position.clone().add(direction);
-			target.z = position.z;
+	let target = position.clone().add(direction);
+	target.z = position.z;
 
-			let scale = this.viewer.getMoveSpeed();
+	let scale = this.viewer.getMoveSpeed();
 
-			this.node.position.copy(position);
-			this.node.lookAt(target);
-			this.node.scale.set(scale, scale, scale);
-			this.node.updateMatrix();
-			this.node.updateMatrixWorld();
-		}
+	this.node.position.copy(position);
+	this.node.lookAt(target);
+	this.node.scale.set(scale, scale, scale);
+	this.node.updateMatrix();
+	this.node.updateMatrixWorld();
+
+	if(this.menu){
+		this.menuVisible = true;
+		this.menu.visible = true;
+		this.refreshMenuState();
+		this.updateMenuPose();
+	}
+}
 
 		onEnd(){
 			

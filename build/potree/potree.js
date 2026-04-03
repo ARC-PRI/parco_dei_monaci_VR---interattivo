@@ -87927,15 +87927,13 @@ updateMenuPose(){
 }
 
 handleMenuToggleInput(){
-	let controller = this.cSecondary;
+	let controller = this.cPrimary;
 
 	if(!controller || !controller.inputSource || !controller.inputSource.gamepad){
 		return;
 	}
 
 	let gp = controller.inputSource.gamepad;
-
-	// X sul controller sinistro
 	let pressed = gp.buttons[4] && gp.buttons[4].pressed;
 
 	if(pressed && !this.menuPressLock){

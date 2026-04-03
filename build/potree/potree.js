@@ -87784,7 +87784,7 @@ createMenuButton(label, x, y, width, height, onClick){
 		new MeshBasicMaterial({
 			color: 0x223344,
 			transparent: true,
-			opacity: 0.92,
+			opacity: 0.96,
 			side: DoubleSide,
 			depthTest: false
 		})
@@ -87792,7 +87792,7 @@ createMenuButton(label, x, y, width, height, onClick){
 
 	let text = new Potree.TextSprite(label);
 	text.position.set(0, 0, 0.004);
-	text.scale.set(width * 0.72, height * 0.52, 1);
+	text.scale.set(width * 0.68, height * 0.42, 1);
 
 	group.add(bg);
 	group.add(text);
@@ -87829,6 +87829,59 @@ getCurrentPointSize(){
 	return 2.0;
 }
 
+getCurrentPointSizeTypeLabel(){
+	let pc = this.viewer.scene.pointclouds[0];
+	if(!pc || !pc.material){
+		return "Fixed";
+	}
+
+	let t = pc.material.pointSizeType;
+
+	if(t === PointSizeType.ATTENUATED){
+		return "Attenuated";
+	}else if(t === PointSizeType.ADAPTIVE){
+		return "Adaptive";
+	}else{
+		return "Fixed";
+	}
+}
+
+cyclePointSizeType(){
+	let pc = this.viewer.scene.pointclouds[0];
+	if(!pc || !pc.material){
+		return;
+	}
+
+	const values = [
+		PointSizeType.FIXED,
+		PointSizeType.ATTENUATED,
+		PointSizeType.ADAPTIVE
+	];
+
+	let current = pc.material.pointSizeType;
+	let index = values.indexOf(current);
+	index = (index + 1) % values.length;
+	let next = values[index];
+
+	for(let cloud of this.viewer.scene.pointclouds){
+		if(cloud.material){
+			cloud.material.pointSizeType = next;
+		}
+	}
+
+	this.refreshMenuState();
+}
+
+getBackgroundLabel(){
+	let bg = this.viewer.background;
+
+	if(bg === null){
+		return "none";
+	}
+
+	return `${bg}`;
+}
+
 refreshMenuState(){
 	if(!this.menu || !this.menu.userData.controls){
 		return;
@@ -87836,15 +87889,14 @@ refreshMenuState(){
 
 	let controls = this.menu.userData.controls;
 
-
 	this.setButtonLabel(
 		controls.pointBudgetValue,
-		`Budget: ${Math.round(this.viewer.getPointBudget()).toLocaleString()}`
+		`Point budget: ${Math.round(this.viewer.getPointBudget()).toLocaleString()}`
 	);
 
 	this.setButtonLabel(
-		controls.speedValue,
-		`Speed: ${this.viewer.getMoveSpeed().toFixed(1)}`
+		controls.fovValue,
+		`Field of view: ${Math.round(this.viewer.fov)}`
 	);
 
 	this.setButtonLabel(
@@ -87853,8 +87905,23 @@ refreshMenuState(){
 	);
 
 	this.setButtonLabel(
+		controls.pointSizeTypeValue,
+		`Size mode: ${this.getCurrentPointSizeTypeLabel()}`
+	);
+
+	this.setButtonLabel(
 		controls.backgroundValue,
-		`BG: ${this.viewer.background}`
+		`Background: ${this.getBackgroundLabel()}`
+	);
+
+	this.setButtonLabel(
+		controls.edlToggle,
+		`EDL: ${this.viewer.getEDLEnabled() ? "ON" : "OFF"}`
+	);
+
+	this.setButtonLabel(
+		controls.speedValue,
+		`Move speed: ${this.viewer.getMoveSpeed().toFixed(1)}`
 	);
 }
 
@@ -87902,9 +87969,9 @@ updateMenuPose(){
 	const up      = new Vector3(0, 1, 0).applyQuaternion(headQuat).normalize();
 
 	let pos = headPos.clone()
-		.add(forward.clone().multiplyScalar(0.65))
-		.add(right.clone().multiplyScalar(0.18))
-		.add(up.clone().multiplyScalar(-0.01));
+	.add(forward.clone().multiplyScalar(0.62))
+	.add(right.clone().multiplyScalar(0.20))
+	.add(up.clone().multiplyScalar(-0.01));
 
 	this.menu.position.copy(pos);
 
@@ -87989,7 +88056,7 @@ pressHoveredButton(){
 	return false;
 }
 
-	initMenu(controller){
+initMenu(controller){
 
 	if(this.menu){
 		return;
@@ -88002,72 +88069,110 @@ pressHoveredButton(){
 	node.visible = false;
 
 	let panel = new Mesh(
-	new PlaneGeometry(0.56, 0.66, 8, 8),
-	new MeshBasicMaterial({
-		color: 0x101820,
-		transparent: true,
-		opacity: 0.96,
-		side: DoubleSide,
-		depthTest: false
-	})
-);
-
+		new PlaneGeometry(0.58, 0.78),
+		new MeshBasicMaterial({
+			color: 0x0f1b24,
+			transparent: true,
+			opacity: 0.97,
+			side: DoubleSide,
+			depthTest: false
+		})
+	);
 	node.add(panel);
 
 	let title = new Potree.TextSprite("POTREE VR");
-	title.position.set(0, 0.18, 0.002);
-	title.scale.set(0.22, 0.05, 1);
+	title.position.set(0, 0.34, 0.004);
+	title.scale.set(0.18, 0.035, 1);
 	node.add(title);
 
 	let controls = {};
 
-controls.pointBudgetMinus = this.createMenuButton("-", -0.13, 0.13, 0.055, 0.045, () => {
-	let v = Math.max(1000000, this.viewer.getPointBudget() - 500000);
-	this.viewer.setPointBudget(v);
-	this.refreshMenuState();
-});
+	const addSection = (label, y) => {
+		let bg = new Mesh(
+			new PlaneGeometry(0.50, 0.042),
+			new MeshBasicMaterial({
+				color: 0x30424e,
+				transparent: true,
+				opacity: 0.98,
+				side: DoubleSide,
+				depthTest: false
+			})
+		);
+		bg.position.set(0, y, 0.001);
+		node.add(bg);
 
-controls.pointBudgetValue = this.createMenuButton("Budget: 0", 0.00, 0.13, 0.24, 0.05, () => {});
-controls.pointBudgetPlus = this.createMenuButton("+", 0.13, 0.13, 0.055, 0.045, () => {
-	let v = Math.min(50000000, this.viewer.getPointBudget() + 500000);
-	this.viewer.setPointBudget(v);
-	this.refreshMenuState();
-});
+		let text = new Potree.TextSprite(label);
+		text.position.set(0, y, 0.004);
+		text.scale.set(0.14, 0.022, 1);
+		node.add(text);
+	};
 
-controls.speedMinus = this.createMenuButton("-", -0.12, 0.06, 0.05, 0.04, () => {
-	let v = Math.max(1, this.viewer.getMoveSpeed() - 1);
-	this.viewer.setMoveSpeed(v);
-	this.refreshMenuState();
-});
+	addSection("APPEARANCE", 0.27);
 
-controls.speedValue = this.createMenuButton("Speed: 0", 0.00, 0.06, 0.22, 0.045, () => {});
-controls.speedPlus = this.createMenuButton("+", 0.12, 0.06, 0.05, 0.04, () => {
-	let v = Math.min(300, this.viewer.getMoveSpeed() + 1);
-	this.viewer.setMoveSpeed(v);
-	this.refreshMenuState();
-});
+	controls.pointBudgetMinus = this.createMenuButton("-", -0.22, 0.20, 0.05, 0.038, () => {
+		let v = Math.max(1000000, this.viewer.getPointBudget() - 1000000);
+		this.viewer.setPointBudget(v);
+		this.refreshMenuState();
+	});
+	controls.pointBudgetValue = this.createMenuButton("Point budget: 0", 0.00, 0.20, 0.30, 0.040, () => {});
+	controls.pointBudgetPlus = this.createMenuButton("+", 0.22, 0.20, 0.05, 0.038, () => {
+		let v = Math.min(50000000, this.viewer.getPointBudget() + 1000000);
+		this.viewer.setPointBudget(v);
+		this.refreshMenuState();
+	});
 
-controls.pointSizeMinus = this.createMenuButton("-", -0.12, -0.01, 0.05, 0.04, () => {
-	let s = Math.max(0.5, this.getCurrentPointSize() - 0.1);
-	this.setAllPointSizes(s);
-	this.refreshMenuState();
-});
+	controls.fovMinus = this.createMenuButton("-", -0.22, 0.14, 0.05, 0.038, () => {
+		let v = Math.max(30, this.viewer.fov - 5);
+		this.viewer.setFOV(v);
+		this.refreshMenuState();
+	});
+	controls.fovValue = this.createMenuButton("Field of view: 0", 0.00, 0.14, 0.30, 0.040, () => {});
+	controls.fovPlus = this.createMenuButton("+", 0.22, 0.14, 0.05, 0.038, () => {
+		let v = Math.min(100, this.viewer.fov + 5);
+		this.viewer.setFOV(v);
+		this.refreshMenuState();
+	});
 
-controls.pointSizeValue = this.createMenuButton("Point size: 0", 0.00, -0.01, 0.22, 0.045, () => {});
-controls.pointSizePlus = this.createMenuButton("+", 0.12, -0.01, 0.05, 0.04, () => {
-	let s = Math.min(10, this.getCurrentPointSize() + 0.1);
-	this.setAllPointSizes(s);
-	this.refreshMenuState();
-});
+	controls.pointSizeMinus = this.createMenuButton("-", -0.22, 0.08, 0.05, 0.038, () => {
+		let s = Math.max(0.5, this.getCurrentPointSize() - 0.1);
+		this.setAllPointSizes(s);
+		this.refreshMenuState();
+	});
+	controls.pointSizeValue = this.createMenuButton("Point size: 0", 0.00, 0.08, 0.30, 0.040, () => {});
+	controls.pointSizePlus = this.createMenuButton("+", 0.22, 0.08, 0.05, 0.038, () => {
+		let s = Math.min(10, this.getCurrentPointSize() + 0.1);
+		this.setAllPointSizes(s);
+		this.refreshMenuState();
+	});
 
-controls.backgroundValue = this.createMenuButton("BG: gradient", 0.00, -0.10, 0.28, 0.05, () => {
-	this.cycleBackground();
-});
+	controls.pointSizeTypeValue = this.createMenuButton("Size mode: Fixed", 0.00, 0.02, 0.42, 0.042, () => {
+		this.cyclePointSizeType();
+	});
 
-controls.resetView = this.createMenuButton("RESET VIEW", 0.00, -0.18, 0.28, 0.05, () => {
-	this.viewer.fitToScreen();
-	this.refreshMenuState();
-});
+	controls.backgroundValue = this.createMenuButton("Background: gradient", 0.00, -0.04, 0.42, 0.042, () => {
+		this.cycleBackground();
+	});
+
+	addSection("RENDERING", -0.12);
+
+	controls.edlToggle = this.createMenuButton("EDL: OFF", 0.00, -0.19, 0.42, 0.042, () => {
+		this.viewer.setEDLEnabled(!this.viewer.getEDLEnabled());
+		this.refreshMenuState();
+	});
+
+	addSection("NAVIGATION", -0.27);
+
+	controls.speedMinus = this.createMenuButton("-", -0.22, -0.34, 0.05, 0.038, () => {
+		let v = Math.max(1, this.viewer.getMoveSpeed() - 1);
+		this.viewer.setMoveSpeed(v);
+		this.refreshMenuState();
+	});
+	controls.speedValue = this.createMenuButton("Move speed: 0", 0.00, -0.34, 0.30, 0.040, () => {});
+	controls.speedPlus = this.createMenuButton("+", 0.22, -0.34, 0.05, 0.038, () => {
+		let v = Math.min(300, this.viewer.getMoveSpeed() + 1);
+		this.viewer.setMoveSpeed(v);
+		this.refreshMenuState();
+	});
 
 	for(let key of Object.keys(controls)){
 		node.add(controls[key]);

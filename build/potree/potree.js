@@ -87603,6 +87603,15 @@ if(smoothTurn !== 0){
 			}
 
 			this.menu = null;
+this.menuButtons = [];
+this.menuVisible = false;
+this.menuHovered = null;
+this.menuPressLock = false;
+this.menuController = null;
+this.menuOffset = new Vector3(-0.18, -0.05, -0.12);
+this.tmpVec = new Vector3();
+this.tmpVec2 = new Vector3();
+this.tmpRaycaster = new Raycaster();
 
 			const controllerModelFactory = new XRControllerModelFactory();
 
@@ -87763,44 +87772,255 @@ if(smoothTurn !== 0){
 
 			return infoNode;
 		}
+class VRControls extends EventDispatcher{
 
-		initMenu(controller){
+	constructor(viewer){
+		...
+	}
 
-			if(this.menu){
-				return;
-			}
+	createInfo(){
+		...
+	}
 
-			let node = new Object3D("vr menu");
+	handleMenuToggleInput(){
+		let controller = this.cSecondary;
 
-			// let nSlider = this.createSlider("speed", 0, 1);
-			// let nInfo = this.createInfo();
-
-			// // node.add(nSlider);
-			// node.add(nInfo);
-
-			// {
-			// 	node.rotation.set(-1.5, 0, 0)
-			// 	node.scale.set(0.3, 0.3, 0.3);
-			// 	node.position.set(-0.2, -0.002, -0.1)
-
-			// 	// nInfo.position.set(0.5, 0, 0);
-			// 	nInfo.scale.set(0.8, 0.6, 0);
-
-			// 	// controller.add(node);
-			// }
-
-			// node.position.set(-0.3, 1.2, 0.2);
-			// node.scale.set(0.3, 0.2, 0.3);
-			// node.lookAt(new THREE.Vector3(0, 1.5, 0.1));
-
-			// this.viewer.sceneVR.add(node);
-
-			this.menu = node;
-
-			// window.vrSlider = nSlider;
-			window.vrMenu = node;
-
+		if(!controller || !controller.inputSource || !controller.inputSource.gamepad){
+			return;
 		}
+
+		let gp = controller.inputSource.gamepad;
+
+		// X sul controller sinistro
+		let pressed = gp.buttons[4] && gp.buttons[4].pressed;
+
+		if(pressed && !this.menuPressLock){
+			this.menuPressLock = true;
+			this.toggleMenu();
+		}
+
+		if(!pressed){
+			this.menuPressLock = false;
+		}
+	}
+
+	initMenu(controller){
+		...
+	}
+
+	...
+}
+
+createMenuButton(label, x, y, width, height, onClick){
+	let group = new Object3D();
+
+	let bg = new Mesh(
+		new PlaneGeometry(width, height),
+		new MeshBasicMaterial({
+			color: 0x223344,
+			transparent: true,
+			opacity: 0.9
+		})
+	);
+
+	let text = new Potree.TextSprite(label);
+	text.position.set(0, 0, 0.002);
+	text.scale.set(width * 0.9, height * 0.45, 1);
+
+	group.add(bg);
+	group.add(text);
+
+	group.position.set(x, y, 0);
+	group.userData.bg = bg;
+	group.userData.text = text;
+	group.userData.label = label;
+	group.userData.onClick = onClick;
+
+	this.menuButtons.push(group);
+
+	return group;
+}
+
+setButtonLabel(button, label){
+		button.userData.label = label;
+		button.userData.text.setText(label);
+	}
+
+setAllPointSizes(value){
+	for(let pc of this.viewer.scene.pointclouds){
+		if(pc.material){
+			pc.material.size = value;
+		}
+	}
+}
+
+getCurrentPointSize(){
+	let pc = this.viewer.scene.pointclouds[0];
+	if(pc && pc.material){
+		return pc.material.size ?? 2.0;
+	}
+	return 2.0;
+}
+
+refreshMenuState(){
+	if(!this.menu || !this.menu.userData.controls){
+		return;
+	}
+
+	let controls = this.menu.userData.controls;
+
+	let edlText = this.viewer.useEDL ? "EDL: ON" : "EDL: OFF";
+	this.setButtonLabel(controls.edlToggle, edlText);
+
+	this.setButtonLabel(
+		controls.pointBudgetValue,
+		`Budget: ${Math.round(this.viewer.getPointBudget()).toLocaleString()}`
+	);
+
+	this.setButtonLabel(
+		controls.speedValue,
+		`Speed: ${this.viewer.getMoveSpeed().toFixed(1)}`
+	);
+
+	this.setButtonLabel(
+		controls.pointSizeValue,
+		`Point size: ${this.getCurrentPointSize().toFixed(1)}`
+	);
+
+	this.setButtonLabel(
+		controls.backgroundValue,
+		`BG: ${this.viewer.background}`
+	);
+}
+
+cycleBackground(){
+	const values = ["skybox", "gradient", "black", "white", null];
+	const current = this.viewer.background ?? null;
+	let index = values.indexOf(current);
+	index = (index + 1) % values.length;
+	this.viewer.setBackground(values[index]);
+	this.refreshMenuState();
+}
+
+toggleMenu(){
+	if(!this.menu){
+		return;
+	}
+
+	this.menuVisible = !this.menuVisible;
+	this.menu.visible = this.menuVisible;
+
+	if(this.menuVisible){
+		this.refreshMenuState();
+	}
+}
+
+updateMenuPose(){
+	if(!this.menu || !this.menuController){
+		return;
+	}
+
+	this.menu.position.copy(this.menuOffset);
+	this.menu.rotation.set(-1.2, 0.0, 0.0);
+}
+
+
+	initMenu(controller){
+
+	if(this.menu){
+		return;
+	}
+
+	this.menuController = controller;
+
+	let node = new Object3D();
+	node.name = "vr menu";
+	node.visible = false;
+
+	let panel = new Mesh(
+		new PlaneGeometry(0.34, 0.42),
+		new MeshBasicMaterial({
+			color: 0x111111,
+			transparent: true,
+			opacity: 0.88
+		})
+	);
+
+	node.add(panel);
+
+	let title = new Potree.TextSprite("POTREE VR");
+	title.position.set(0, 0.18, 0.002);
+	title.scale.set(0.22, 0.05, 1);
+	node.add(title);
+
+	let controls = {};
+
+	controls.pointBudgetMinus = this.createMenuButton("-", -0.12, 0.11, 0.05, 0.04, () => {
+		let v = Math.max(1000000, this.viewer.getPointBudget() - 500000);
+		this.viewer.setPointBudget(v);
+		this.refreshMenuState();
+	});
+
+	controls.pointBudgetValue = this.createMenuButton("Budget: 0", 0.00, 0.11, 0.18, 0.04, () => {});
+	controls.pointBudgetPlus = this.createMenuButton("+", 0.12, 0.11, 0.05, 0.04, () => {
+		let v = Math.min(50000000, this.viewer.getPointBudget() + 500000);
+		this.viewer.setPointBudget(v);
+		this.refreshMenuState();
+	});
+
+	controls.speedMinus = this.createMenuButton("-", -0.12, 0.05, 0.05, 0.04, () => {
+		let v = Math.max(1, this.viewer.getMoveSpeed() - 1);
+		this.viewer.setMoveSpeed(v);
+		this.refreshMenuState();
+	});
+
+	controls.speedValue = this.createMenuButton("Speed: 0", 0.00, 0.05, 0.18, 0.04, () => {});
+	controls.speedPlus = this.createMenuButton("+", 0.12, 0.05, 0.05, 0.04, () => {
+		let v = Math.min(300, this.viewer.getMoveSpeed() + 1);
+		this.viewer.setMoveSpeed(v);
+		this.refreshMenuState();
+	});
+
+	controls.pointSizeMinus = this.createMenuButton("-", -0.12, -0.01, 0.05, 0.04, () => {
+		let s = Math.max(0.5, this.getCurrentPointSize() - 0.1);
+		this.setAllPointSizes(s);
+		this.refreshMenuState();
+	});
+
+	controls.pointSizeValue = this.createMenuButton("Point size: 0", 0.00, -0.01, 0.18, 0.04, () => {});
+	controls.pointSizePlus = this.createMenuButton("+", 0.12, -0.01, 0.05, 0.04, () => {
+		let s = Math.min(10, this.getCurrentPointSize() + 0.1);
+		this.setAllPointSizes(s);
+		this.refreshMenuState();
+	});
+
+	controls.edlToggle = this.createMenuButton("EDL: OFF", 0.00, -0.08, 0.24, 0.045, () => {
+		this.viewer.setEDLEnabled(!this.viewer.useEDL);
+		this.refreshMenuState();
+	});
+
+	controls.backgroundValue = this.createMenuButton("BG: gradient", 0.00, -0.14, 0.24, 0.045, () => {
+		this.cycleBackground();
+	});
+
+	controls.resetView = this.createMenuButton("RESET VIEW", 0.00, -0.20, 0.24, 0.045, () => {
+		this.viewer.fitToScreen();
+		this.refreshMenuState();
+	});
+
+	for(let key of Object.keys(controls)){
+		node.add(controls[key]);
+	}
+
+	node.userData.controls = controls;
+
+	controller.add(node);
+
+	this.menu = node;
+	window.vrMenu = node;
+
+	this.refreshMenuState();
+}
 
 
 		toScene(vec){
@@ -87926,26 +88146,19 @@ if(smoothTurn !== 0){
 
 		update(delta){
 
-			
+	this.handleMenuToggleInput();
 
-			// if(this.mode === this.mode_fly){
-			// 	let ray = new THREE.Ray(origin, direction);
-				
-			// 	for(let object of this.selectables){
+	if(this.menu){
+		this.updateMenuPose();
+	}
 
-			// 		if(object.intersectsRay(ray)){
-			// 			object.onHit(ray);
-			// 		}
+	if(this.menuVisible){
+		this.updateMenuInteraction();
+	}
 
-			// 	}
+	this.mode.update(this, delta);
+}
 
-			// }
-
-			this.mode.update(this, delta);
-
-			
-
-		}
 	};
 
 	// Adapted from three.js VRButton

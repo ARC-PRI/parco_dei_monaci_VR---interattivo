@@ -87772,44 +87772,7 @@ this.tmpRaycaster = new Raycaster();
 
 			return infoNode;
 		}
-class VRControls extends EventDispatcher{
 
-	constructor(viewer){
-		...
-	}
-
-	createInfo(){
-		...
-	}
-
-	handleMenuToggleInput(){
-		let controller = this.cSecondary;
-
-		if(!controller || !controller.inputSource || !controller.inputSource.gamepad){
-			return;
-		}
-
-		let gp = controller.inputSource.gamepad;
-
-		// X sul controller sinistro
-		let pressed = gp.buttons[4] && gp.buttons[4].pressed;
-
-		if(pressed && !this.menuPressLock){
-			this.menuPressLock = true;
-			this.toggleMenu();
-		}
-
-		if(!pressed){
-			this.menuPressLock = false;
-		}
-	}
-
-	initMenu(controller){
-		...
-	}
-
-	...
-}
 
 createMenuButton(label, x, y, width, height, onClick){
 	let group = new Object3D();
@@ -87842,9 +87805,9 @@ createMenuButton(label, x, y, width, height, onClick){
 }
 
 setButtonLabel(button, label){
-		button.userData.label = label;
-		button.userData.text.setText(label);
-	}
+	button.userData.label = label;
+	button.userData.text.setText(label);
+}
 
 setAllPointSizes(value){
 	for(let pc of this.viewer.scene.pointclouds){
@@ -87924,6 +87887,72 @@ updateMenuPose(){
 	this.menu.rotation.set(-1.2, 0.0, 0.0);
 }
 
+handleMenuToggleInput(){
+	let controller = this.cSecondary;
+
+	if(!controller || !controller.inputSource || !controller.inputSource.gamepad){
+		return;
+	}
+
+	let gp = controller.inputSource.gamepad;
+
+	// X sul controller sinistro
+	let pressed = gp.buttons[4] && gp.buttons[4].pressed;
+
+	if(pressed && !this.menuPressLock){
+		this.menuPressLock = true;
+		this.toggleMenu();
+	}
+
+	if(!pressed){
+		this.menuPressLock = false;
+	}
+}
+
+updateMenuInteraction(){
+	if(!this.menu || !this.menuVisible || !this.cPrimary){
+		return;
+	}
+
+	let controller = this.cPrimary;
+
+	const origin = new Vector3();
+	const direction = new Vector3(0, 0, -1);
+
+	controller.updateMatrixWorld(true);
+	origin.setFromMatrixPosition(controller.matrixWorld);
+	direction.applyQuaternion(controller.getWorldQuaternion(new Quaternion())).normalize();
+
+	this.tmpRaycaster.set(origin, direction);
+
+	let meshes = this.menuButtons.map(b => b.userData.bg);
+	let intersections = this.tmpRaycaster.intersectObjects(meshes, false);
+
+	if(this.menuHovered){
+		this.menuHovered.material.color.setHex(0x223344);
+		this.menuHovered = null;
+	}
+
+	if(intersections.length > 0){
+		let hit = intersections[0].object;
+		hit.material.color.setHex(0x446688);
+		this.menuHovered = hit;
+	}
+}
+
+pressHoveredButton(){
+	if(!this.menuHovered){
+		return false;
+	}
+
+	let button = this.menuButtons.find(b => b.userData.bg === this.menuHovered);
+	if(button && button.userData.onClick){
+		button.userData.onClick();
+		return true;
+	}
+
+	return false;
+}
 
 	initMenu(controller){
 
@@ -88067,16 +88096,24 @@ updateMenuPose(){
 		}
 
 		onTriggerStart(controller){
-			this.triggered.add(controller);
 
-			if(this.triggered.size === 0){
-				this.setMode(this.mode_fly);
-			}else if(this.triggered.size === 1){
-				this.setMode(this.mode_translate);
-			}else if(this.triggered.size === 2){
-				this.setMode(this.mode_rotScale);
-			}
+	if(this.menuVisible && controller === this.cPrimary){
+		let consumed = this.pressHoveredButton();
+		if(consumed){
+			return;
 		}
+	}
+
+	this.triggered.add(controller);
+
+	if(this.triggered.size === 0){
+		this.setMode(this.mode_fly);
+	}else if(this.triggered.size === 1){
+		this.setMode(this.mode_translate);
+	}else if(this.triggered.size === 2){
+		this.setMode(this.mode_rotScale);
+	}
+}
 
 		onTriggerEnd(controller){
 			this.triggered.delete(controller);

@@ -71565,11 +71565,15 @@ void main() {
 				texture.minFilter = texture.magFilter = NearestFilter;
 				texture.minFilter = texture.magFilter = LinearFilter;
 				let bg = new Mesh(
-					new PlaneBufferGeometry(2, 2, 1),
-					new MeshBasicMaterial({
-						map: texture
-					})
-				);
+	new PlaneGeometry(width, height),
+	new MeshBasicMaterial({
+		color: 0x223344,
+		transparent: true,
+		opacity: 0.92,
+		side: DoubleSide,
+		depthTest: false
+	})
+);
 				bg.material.depthTest = false;
 				bg.material.depthWrite = false;
 				this.sceneBG.add(bg);
@@ -87885,7 +87889,7 @@ updateMenuPose(){
 		return;
 	}
 
-	let xrCam = this.viewer.renderer.xr.getCamera(new PerspectiveCamera());
+	let xrCam = this.viewer.renderer.xr.getCamera(fakeCam);
 
 	if(!xrCam){
 		return;
@@ -87896,25 +87900,23 @@ updateMenuPose(){
 	const headPos = xrCam.getWorldPosition(new Vector3());
 	const headQuat = xrCam.getWorldQuaternion(new Quaternion());
 
-	// assi reali del visore
 	const forward = new Vector3(0, 0, -1).applyQuaternion(headQuat).normalize();
 	const right   = new Vector3(1, 0, 0).applyQuaternion(headQuat).normalize();
 	const up      = new Vector3(0, 1, 0).applyQuaternion(headQuat).normalize();
 
-	// pannello fisso davanti alla vista, leggermente a sinistra
-	const pos = headPos.clone()
-		.add(forward.clone().multiplyScalar(0.75))
-		.add(right.clone().multiplyScalar(-0.28))
-		.add(up.clone().multiplyScalar(-0.05));
+	let pos = headPos.clone()
+		.add(forward.clone().multiplyScalar(0.65))
+		.add(right.clone().multiplyScalar(-0.12))
+		.add(up.clone().multiplyScalar(-0.02));
 
 	this.menu.position.copy(pos);
 
-	// orienta il pannello verso il visore
-	const lookTarget = headPos.clone().add(forward.clone().multiplyScalar(1.5));
-	this.menu.lookAt(lookTarget);
+	// il fronte del pannello guarda verso la testa
+	this.menu.quaternion.copy(headQuat);
 
-	// opzionale: evita ribaltamenti strani
-	this.menu.up.copy(up);
+	// ruota di 180° così il lato frontale dei plane guarda l’utente
+	this.menu.rotateY(Math.PI);
+
 	this.menu.updateMatrix();
 	this.menu.updateMatrixWorld(true);
 }
@@ -87958,6 +87960,8 @@ updateMenuInteraction(){
 	direction.applyQuaternion(controller.getWorldQuaternion(new Quaternion())).normalize();
 
 	this.tmpRaycaster.set(origin, direction);
+	this.tmpRaycaster.near = 0.01;
+	this.tmpRaycaster.far = 2.0;
 
 	let meshes = this.menuButtons.map(b => b.userData.bg);
 	let intersections = this.tmpRaycaster.intersectObjects(meshes, false);
@@ -87969,7 +87973,7 @@ updateMenuInteraction(){
 
 	if(intersections.length > 0){
 		let hit = intersections[0].object;
-		hit.material.color.setHex(0x446688);
+		hit.material.color.setHex(0x66aaff);
 		this.menuHovered = hit;
 	}
 }
@@ -88001,13 +88005,15 @@ pressHoveredButton(){
 	node.visible = false;
 
 	let panel = new Mesh(
-		new PlaneGeometry(0.52, 0.62),
-		new MeshBasicMaterial({
-			color: 0x111111,
-			transparent: true,
-			opacity: 0.88
-		})
-	);
+	new PlaneGeometry(0.52, 0.62),
+	new MeshBasicMaterial({
+		color: 0x111111,
+		transparent: true,
+		opacity: 0.88,
+		side: DoubleSide,
+		depthTest: false
+	})
+);
 
 	node.add(panel);
 

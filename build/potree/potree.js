@@ -71560,20 +71560,20 @@ void main() {
 			this.scenePointCloud.add( light );
 
 			{ // background
-				let texture = Utils.createBackgroundTexture(512, 512);
+	let texture = Utils.createBackgroundTexture(512, 512);
 
-				texture.minFilter = texture.magFilter = NearestFilter;
-				texture.minFilter = texture.magFilter = LinearFilter;
-				let bg = new Mesh(
-	new PlaneGeometry(width, height),
-	new MeshBasicMaterial({
-		color: 0x223344,
-		transparent: true,
-		opacity: 0.92,
-		side: DoubleSide,
-		depthTest: false
-	})
-);
+	texture.minFilter = texture.magFilter = NearestFilter;
+	texture.minFilter = texture.magFilter = LinearFilter;
+	let bg = new Mesh(
+		new PlaneBufferGeometry(2, 2, 1),
+		new MeshBasicMaterial({
+			map: texture
+		})
+	);
+	bg.material.depthTest = false;
+	bg.material.depthWrite = false;
+	this.sceneBG.add(bg);
+}
 				bg.material.depthTest = false;
 				bg.material.depthWrite = false;
 				this.sceneBG.add(bg);
@@ -87787,14 +87787,14 @@ createMenuButton(label, x, y, width, height, onClick){
 		new MeshBasicMaterial({
 			color: 0x223344,
 			transparent: true,
-			opacity: 0.92
+			opacity: 0.92,
+			side: DoubleSide,
+			depthTest: false
 		})
 	);
 
 	let text = new Potree.TextSprite(label);
 	text.position.set(0, 0, 0.003);
-
-	// testo meno schiacciato e più leggibile
 	text.scale.set(width * 1.10, height * 1.10, 1);
 
 	group.add(bg);
@@ -91100,3 +91100,4 @@ onStart(){
 
 })));
 //# sourceMappingURL=potree.js.map
+

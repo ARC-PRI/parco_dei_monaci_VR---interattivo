@@ -71574,10 +71574,7 @@ void main() {
 	bg.material.depthWrite = false;
 	this.sceneBG.add(bg);
 }
-				bg.material.depthTest = false;
-				bg.material.depthWrite = false;
-				this.sceneBG.add(bg);
-			}
+			
 
 			// { // lights
 			// 	{
@@ -87889,7 +87886,7 @@ updateMenuPose(){
 		return;
 	}
 
-	let xrCam = this.viewer.renderer.xr.getCamera(fakeCam);
+	let xrCam = this.viewer.renderer.xr.getCamera(new PerspectiveCamera());
 
 	if(!xrCam){
 		return;

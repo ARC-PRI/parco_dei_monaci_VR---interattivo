@@ -90364,7 +90364,7 @@ pressHoveredButton(){
 
 				let viewport = xrCameras.cameras[0].viewport;
 
-				pointcloud.material.useEDL = false;
+				pointcloud.material.useEDL = this.useEDL;
 				pointcloud.screenHeight = viewport.height;
 				pointcloud.screenWidth = viewport.width;
 
@@ -90396,7 +90396,7 @@ pressHoveredButton(){
 
 				for(let pointcloud of this.scene.pointclouds){
 					const {material} = pointcloud;
-					material.useEDL = false;
+					material.useEDL = this.useEDL;
 				}
 
 				let vrWorld = view.clone().invert();

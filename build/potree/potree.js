@@ -87919,6 +87919,7 @@ updateMenuPose(){
 	this.menu.updateMatrixWorld(true);
 }
 
+
 handleMenuToggleInput(){
 	let controller = this.cPrimary;
 

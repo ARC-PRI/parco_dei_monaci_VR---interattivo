@@ -87792,7 +87792,13 @@ createMenuButton(label, x, y, width, height, onClick){
 
 	let text = new Potree.TextSprite(label);
 	text.position.set(0, 0, 0.004);
-	text.scale.set(width * 0.68, height * 0.42, 1);
+
+	// scala fissa, non proporzionale alla larghezza del bottone
+	if(label === "+" || label === "-"){
+		text.scale.set(0.018, 0.018, 1);
+	}else{
+		text.scale.set(0.060, 0.020, 1);
+	}
 
 	group.add(bg);
 	group.add(text);
@@ -88082,7 +88088,7 @@ initMenu(controller){
 
 	let title = new Potree.TextSprite("POTREE VR");
 	title.position.set(0, 0.34, 0.004);
-	title.scale.set(0.18, 0.035, 1);
+	title.scale.set(0.085, 0.018, 1);
 	node.add(title);
 
 	let controls = {};

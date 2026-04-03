@@ -87782,13 +87782,15 @@ createMenuButton(label, x, y, width, height, onClick){
 		new MeshBasicMaterial({
 			color: 0x223344,
 			transparent: true,
-			opacity: 0.9
+			opacity: 0.92
 		})
 	);
 
 	let text = new Potree.TextSprite(label);
-	text.position.set(0, 0, 0.002);
-	text.scale.set(width * 0.9, height * 0.45, 1);
+	text.position.set(0, 0, 0.003);
+
+	// testo meno schiacciato e più leggibile
+	text.scale.set(width * 1.10, height * 1.10, 1);
 
 	group.add(bg);
 	group.add(text);
@@ -87832,8 +87834,6 @@ refreshMenuState(){
 
 	let controls = this.menu.userData.controls;
 
-	let edlText = this.viewer.useEDL ? "EDL: ON" : "EDL: OFF";
-	this.setButtonLabel(controls.edlToggle, edlText);
 
 	this.setButtonLabel(
 		controls.pointBudgetValue,
@@ -88004,58 +88004,53 @@ pressHoveredButton(){
 
 	let controls = {};
 
-	controls.pointBudgetMinus = this.createMenuButton("-", -0.12, 0.11, 0.05, 0.04, () => {
-		let v = Math.max(1000000, this.viewer.getPointBudget() - 500000);
-		this.viewer.setPointBudget(v);
-		this.refreshMenuState();
-	});
+controls.pointBudgetMinus = this.createMenuButton("-", -0.12, 0.13, 0.05, 0.04, () => {
+	let v = Math.max(1000000, this.viewer.getPointBudget() - 500000);
+	this.viewer.setPointBudget(v);
+	this.refreshMenuState();
+});
 
-	controls.pointBudgetValue = this.createMenuButton("Budget: 0", 0.00, 0.11, 0.18, 0.04, () => {});
-	controls.pointBudgetPlus = this.createMenuButton("+", 0.12, 0.11, 0.05, 0.04, () => {
-		let v = Math.min(50000000, this.viewer.getPointBudget() + 500000);
-		this.viewer.setPointBudget(v);
-		this.refreshMenuState();
-	});
+controls.pointBudgetValue = this.createMenuButton("Budget: 0", 0.00, 0.13, 0.22, 0.045, () => {});
+controls.pointBudgetPlus = this.createMenuButton("+", 0.12, 0.13, 0.05, 0.04, () => {
+	let v = Math.min(50000000, this.viewer.getPointBudget() + 500000);
+	this.viewer.setPointBudget(v);
+	this.refreshMenuState();
+});
 
-	controls.speedMinus = this.createMenuButton("-", -0.12, 0.05, 0.05, 0.04, () => {
-		let v = Math.max(1, this.viewer.getMoveSpeed() - 1);
-		this.viewer.setMoveSpeed(v);
-		this.refreshMenuState();
-	});
+controls.speedMinus = this.createMenuButton("-", -0.12, 0.06, 0.05, 0.04, () => {
+	let v = Math.max(1, this.viewer.getMoveSpeed() - 1);
+	this.viewer.setMoveSpeed(v);
+	this.refreshMenuState();
+});
 
-	controls.speedValue = this.createMenuButton("Speed: 0", 0.00, 0.05, 0.18, 0.04, () => {});
-	controls.speedPlus = this.createMenuButton("+", 0.12, 0.05, 0.05, 0.04, () => {
-		let v = Math.min(300, this.viewer.getMoveSpeed() + 1);
-		this.viewer.setMoveSpeed(v);
-		this.refreshMenuState();
-	});
+controls.speedValue = this.createMenuButton("Speed: 0", 0.00, 0.06, 0.22, 0.045, () => {});
+controls.speedPlus = this.createMenuButton("+", 0.12, 0.06, 0.05, 0.04, () => {
+	let v = Math.min(300, this.viewer.getMoveSpeed() + 1);
+	this.viewer.setMoveSpeed(v);
+	this.refreshMenuState();
+});
 
-	controls.pointSizeMinus = this.createMenuButton("-", -0.12, -0.01, 0.05, 0.04, () => {
-		let s = Math.max(0.5, this.getCurrentPointSize() - 0.1);
-		this.setAllPointSizes(s);
-		this.refreshMenuState();
-	});
+controls.pointSizeMinus = this.createMenuButton("-", -0.12, -0.01, 0.05, 0.04, () => {
+	let s = Math.max(0.5, this.getCurrentPointSize() - 0.1);
+	this.setAllPointSizes(s);
+	this.refreshMenuState();
+});
 
-	controls.pointSizeValue = this.createMenuButton("Point size: 0", 0.00, -0.01, 0.18, 0.04, () => {});
-	controls.pointSizePlus = this.createMenuButton("+", 0.12, -0.01, 0.05, 0.04, () => {
-		let s = Math.min(10, this.getCurrentPointSize() + 0.1);
-		this.setAllPointSizes(s);
-		this.refreshMenuState();
-	});
+controls.pointSizeValue = this.createMenuButton("Point size: 0", 0.00, -0.01, 0.22, 0.045, () => {});
+controls.pointSizePlus = this.createMenuButton("+", 0.12, -0.01, 0.05, 0.04, () => {
+	let s = Math.min(10, this.getCurrentPointSize() + 0.1);
+	this.setAllPointSizes(s);
+	this.refreshMenuState();
+});
 
-	controls.edlToggle = this.createMenuButton("EDL: OFF", 0.00, -0.08, 0.24, 0.045, () => {
-		this.viewer.setEDLEnabled(!this.viewer.useEDL);
-		this.refreshMenuState();
-	});
+controls.backgroundValue = this.createMenuButton("BG: gradient", 0.00, -0.10, 0.28, 0.05, () => {
+	this.cycleBackground();
+});
 
-	controls.backgroundValue = this.createMenuButton("BG: gradient", 0.00, -0.14, 0.24, 0.045, () => {
-		this.cycleBackground();
-	});
-
-	controls.resetView = this.createMenuButton("RESET VIEW", 0.00, -0.20, 0.24, 0.045, () => {
-		this.viewer.fitToScreen();
-		this.refreshMenuState();
-	});
+controls.resetView = this.createMenuButton("RESET VIEW", 0.00, -0.18, 0.28, 0.05, () => {
+	this.viewer.fitToScreen();
+	this.refreshMenuState();
+});
 
 	for(let key of Object.keys(controls)){
 		node.add(controls[key]);
@@ -90384,7 +90379,7 @@ pressHoveredButton(){
 
 				let viewport = xrCameras.cameras[0].viewport;
 
-				pointcloud.material.useEDL = this.useEDL;
+				pointcloud.material.useEDL = false;
 				pointcloud.screenHeight = viewport.height;
 				pointcloud.screenWidth = viewport.width;
 
@@ -90416,7 +90411,7 @@ pressHoveredButton(){
 
 				for(let pointcloud of this.scene.pointclouds){
 					const {material} = pointcloud;
-					material.useEDL = this.useEDL;
+					material.useEDL = false;
 				}
 
 				let vrWorld = view.clone().invert();

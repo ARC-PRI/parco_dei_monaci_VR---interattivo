@@ -87881,31 +87881,42 @@ toggleMenu(){
 }
 
 updateMenuPose(){
-	if(!this.menu){
+	if(!this.menu || !this.viewer || !this.viewer.renderer || !this.viewer.renderer.xr){
 		return;
 	}
 
-	let cam = this.getCamera();
+	let xrCam = this.viewer.renderer.xr.getCamera(new PerspectiveCamera());
 
-	cam.updateMatrix();
-	cam.updateMatrixWorld();
+	if(!xrCam){
+		return;
+	}
 
-	const forward = new Vector3(0, -1, 0).applyQuaternion(cam.quaternion).normalize();
-	const right = new Vector3(1, 0, 0).applyQuaternion(cam.quaternion).normalize();
-	const up = new Vector3(0, 0, 1).applyQuaternion(cam.quaternion).normalize();
+	xrCam.updateMatrixWorld(true);
 
-	let pos = cam.position.clone()
-		.add(forward.multiplyScalar(0.75))
-		.add(right.multiplyScalar(-0.38))
-		.add(up.multiplyScalar(0.02));
+	const headPos = xrCam.getWorldPosition(new Vector3());
+	const headQuat = xrCam.getWorldQuaternion(new Quaternion());
+
+	// assi reali del visore
+	const forward = new Vector3(0, 0, -1).applyQuaternion(headQuat).normalize();
+	const right   = new Vector3(1, 0, 0).applyQuaternion(headQuat).normalize();
+	const up      = new Vector3(0, 1, 0).applyQuaternion(headQuat).normalize();
+
+	// pannello fisso davanti alla vista, leggermente a sinistra
+	const pos = headPos.clone()
+		.add(forward.clone().multiplyScalar(0.75))
+		.add(right.clone().multiplyScalar(-0.28))
+		.add(up.clone().multiplyScalar(-0.05));
 
 	this.menu.position.copy(pos);
 
-	let target = cam.position.clone()
-		.add(new Vector3(0, -1, 0).applyQuaternion(cam.quaternion).normalize().multiplyScalar(1.0))
-		.add(right.multiplyScalar(-0.20));
+	// orienta il pannello verso il visore
+	const lookTarget = headPos.clone().add(forward.clone().multiplyScalar(1.5));
+	this.menu.lookAt(lookTarget);
 
-	this.menu.lookAt(target);
+	// opzionale: evita ribaltamenti strani
+	this.menu.up.copy(up);
+	this.menu.updateMatrix();
+	this.menu.updateMatrixWorld(true);
 }
 
 handleMenuToggleInput(){
@@ -87917,11 +87928,7 @@ handleMenuToggleInput(){
 
 	let gp = controller.inputSource.gamepad;
 
-	// Evita stick e grilletti:
-	// 0 = trigger
-	// 1 = squeeze/grip
-	// 3 = thumbstick press
-	// 4/5 = di solito A/X e B/Y
+	// evita stick press e grilletti
 	let pressed =
 		(gp.buttons[5] && gp.buttons[5].pressed) ||
 		(gp.buttons[4] && gp.buttons[4].pressed);
@@ -87994,7 +88001,7 @@ pressHoveredButton(){
 	node.visible = false;
 
 	let panel = new Mesh(
-		new PlaneGeometry(0.34, 0.42),
+		new PlaneGeometry(0.52, 0.62),
 		new MeshBasicMaterial({
 			color: 0x111111,
 			transparent: true,
@@ -88149,7 +88156,7 @@ controls.resetView = this.createMenuButton("RESET VIEW", 0.00, -0.18, 0.28, 0.05
 			}
 		}
 
-		onStart(){
+onStart(){
 
 	let position = this.viewer.scene.view.position.clone();
 	let direction = this.viewer.scene.view.direction;
@@ -88166,8 +88173,9 @@ controls.resetView = this.createMenuButton("RESET VIEW", 0.00, -0.18, 0.28, 0.05
 	this.node.updateMatrix();
 	this.node.updateMatrixWorld();
 
+	this.menuVisible = true;
+
 	if(this.menu){
-		this.menuVisible = true;
 		this.menu.visible = true;
 		this.refreshMenuState();
 		this.updateMenuPose();

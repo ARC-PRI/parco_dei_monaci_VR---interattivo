@@ -87791,8 +87791,8 @@ createMenuButton(label, x, y, width, height, onClick){
 	);
 
 	let text = new Potree.TextSprite(label);
-	text.position.set(0, 0, 0.003);
-	text.scale.set(width * 1.10, height * 1.10, 1);
+	text.position.set(0, 0, 0.004);
+	text.scale.set(width * 0.72, height * 0.52, 1);
 
 	group.add(bg);
 	group.add(text);
@@ -87903,8 +87903,8 @@ updateMenuPose(){
 
 	let pos = headPos.clone()
 		.add(forward.clone().multiplyScalar(0.65))
-		.add(right.clone().multiplyScalar(-0.12))
-		.add(up.clone().multiplyScalar(-0.02));
+		.add(right.clone().multiplyScalar(0.18))
+		.add(up.clone().multiplyScalar(-0.01));
 
 	this.menu.position.copy(pos);
 
@@ -88002,11 +88002,11 @@ pressHoveredButton(){
 	node.visible = false;
 
 	let panel = new Mesh(
-	new PlaneGeometry(0.52, 0.62),
+	new PlaneGeometry(0.56, 0.66, 8, 8),
 	new MeshBasicMaterial({
-		color: 0x111111,
+		color: 0x101820,
 		transparent: true,
-		opacity: 0.88,
+		opacity: 0.96,
 		side: DoubleSide,
 		depthTest: false
 	})
@@ -88021,14 +88021,14 @@ pressHoveredButton(){
 
 	let controls = {};
 
-controls.pointBudgetMinus = this.createMenuButton("-", -0.12, 0.13, 0.05, 0.04, () => {
+controls.pointBudgetMinus = this.createMenuButton("-", -0.13, 0.13, 0.055, 0.045, () => {
 	let v = Math.max(1000000, this.viewer.getPointBudget() - 500000);
 	this.viewer.setPointBudget(v);
 	this.refreshMenuState();
 });
 
-controls.pointBudgetValue = this.createMenuButton("Budget: 0", 0.00, 0.13, 0.22, 0.045, () => {});
-controls.pointBudgetPlus = this.createMenuButton("+", 0.12, 0.13, 0.05, 0.04, () => {
+controls.pointBudgetValue = this.createMenuButton("Budget: 0", 0.00, 0.13, 0.24, 0.05, () => {});
+controls.pointBudgetPlus = this.createMenuButton("+", 0.13, 0.13, 0.055, 0.045, () => {
 	let v = Math.min(50000000, this.viewer.getPointBudget() + 500000);
 	this.viewer.setPointBudget(v);
 	this.refreshMenuState();

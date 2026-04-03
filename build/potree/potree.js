@@ -87612,6 +87612,7 @@ this.menuOffset = new Vector3(-0.18, -0.05, -0.12);
 this.tmpVec = new Vector3();
 this.tmpVec2 = new Vector3();
 this.tmpRaycaster = new Raycaster();
+this.menuOffset = new Vector3(-0.30, -0.05, 0.75);
 
 			const controllerModelFactory = new XRControllerModelFactory();
 
@@ -87884,44 +87885,36 @@ updateMenuPose(){
 		return;
 	}
 
-	// vera camera XR dell'headset
+	// camera XR reale dell'headset
 	let xrCam = this.viewer.renderer.xr.getCamera(fakeCam);
 	xrCam.updateMatrixWorld(true);
 
-	// posizione e orientamento headset in world XR
+	// posizione e orientamento della testa in coordinate XR
 	const headPosXR = xrCam.getWorldPosition(new Vector3());
 	const headQuatXR = xrCam.getWorldQuaternion(new Quaternion());
 
-	// porto la posizione nel sistema scena Potree
-	const headPosScene = toScene(headPosXR, this.node);
-
-	// assi coerenti con quello che stai guardando
+	// assi riferiti a ciò che stai guardando
 	const forwardXR = new Vector3(0, 0, -1).applyQuaternion(headQuatXR).normalize();
 	const upXR = new Vector3(0, 1, 0).applyQuaternion(headQuatXR).normalize();
 	const rightXR = new Vector3(1, 0, 0).applyQuaternion(headQuatXR).normalize();
 
-	// li porto nel sistema scena Potree
-	const forwardScene = toScene(headPosXR.clone().add(forwardXR), this.node).sub(headPosScene).normalize();
-	const upScene = toScene(headPosXR.clone().add(upXR), this.node).sub(headPosScene).normalize();
-	const rightScene = toScene(headPosXR.clone().add(rightXR), this.node).sub(headPosScene).normalize();
+	// conversione nel sistema scena Potree usando il tuo metodo di classe
+	const headPosScene = this.toScene(headPosXR);
+	const forwardScene = this.toScene(headPosXR.clone().add(forwardXR)).sub(headPosScene).normalize();
+	const upScene = this.toScene(headPosXR.clone().add(upXR)).sub(headPosScene).normalize();
+	const rightScene = this.toScene(headPosXR.clone().add(rightXR)).sub(headPosScene).normalize();
 
-	// menu fisso davanti alla vista, leggermente a sinistra
-	const menuDistance = 0.75;
-	const menuLeft = 0.30;
-	const menuDown = 0.05;
-
+	// offset del pannello rispetto alla vista
 	let pos = headPosScene.clone()
-		.add(forwardScene.clone().multiplyScalar(menuDistance))
-		.add(rightScene.clone().multiplyScalar(-menuLeft))
-		.add(upScene.clone().multiplyScalar(-menuDown));
+		.add(rightScene.clone().multiplyScalar(this.menuOffset.x))
+		.add(upScene.clone().multiplyScalar(this.menuOffset.y))
+		.add(forwardScene.clone().multiplyScalar(this.menuOffset.z));
 
 	this.menu.position.copy(pos);
 
-	// orienta sempre il pannello verso l'utente
-	let target = headPosScene.clone().add(forwardScene.clone().multiplyScalar(1.0));
-	this.menu.lookAt(target);
+	// il pannello guarda sempre verso l'utente
+	this.menu.lookAt(headPosScene);
 
-	// opzionale ma utile: forza aggiornamento
 	this.menu.updateMatrix();
 	this.menu.updateMatrixWorld(true);
 }

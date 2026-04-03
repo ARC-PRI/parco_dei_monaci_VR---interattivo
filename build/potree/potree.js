@@ -87791,13 +87791,16 @@ createMenuButton(label, x, y, width, height, onClick){
 	);
 
 	let text = new Potree.TextSprite(label);
+	text.fontface = "Tahoma";
+	text.fontsize = 18;
+	text.borderThickness = 2;
+	text.update();
 	text.position.set(0, 0, 0.004);
 
-	// scala fissa, non proporzionale alla larghezza del bottone
 	if(label === "+" || label === "-"){
 		text.scale.set(0.018, 0.018, 1);
 	}else{
-		text.scale.set(0.060, 0.020, 1);
+		text.scale.set(0.052, 0.017, 1);
 	}
 
 	group.add(bg);
@@ -87882,8 +87885,13 @@ getBackgroundLabel(){
 	let bg = this.viewer.background;
 
 	if(bg === null){
-		return "none";
+		return "None";
 	}
+
+	if(bg === "gradient") return "Gradient";
+	if(bg === "skybox") return "Skybox";
+	if(bg === "black") return "Black";
+	if(bg === "white") return "White";
 
 	return `${bg}`;
 }
@@ -87897,12 +87905,12 @@ refreshMenuState(){
 
 	this.setButtonLabel(
 		controls.pointBudgetValue,
-		`Point budget: ${Math.round(this.viewer.getPointBudget()).toLocaleString()}`
+		`Budget: ${Math.round(this.viewer.getPointBudget()).toLocaleString()}`
 	);
 
 	this.setButtonLabel(
 		controls.fovValue,
-		`Field of view: ${Math.round(this.viewer.fov)}`
+		`FOV: ${Math.round(this.viewer.fov)}`
 	);
 
 	this.setButtonLabel(
@@ -88087,9 +88095,13 @@ initMenu(controller){
 	node.add(panel);
 
 	let title = new Potree.TextSprite("POTREE VR");
-	title.position.set(0, 0.34, 0.004);
-	title.scale.set(0.085, 0.018, 1);
-	node.add(title);
+title.fontface = "Tahoma";
+title.fontsize = 20;
+title.borderThickness = 2;
+title.update();
+title.position.set(0, 0.34, 0.004);
+title.scale.set(0.080, 0.017, 1);
+node.add(title);
 
 	let controls = {};
 
@@ -88108,9 +88120,13 @@ initMenu(controller){
 		node.add(bg);
 
 		let text = new Potree.TextSprite(label);
-		text.position.set(0, y, 0.004);
-		text.scale.set(0.14, 0.022, 1);
-		node.add(text);
+text.fontface = "Tahoma";
+text.fontsize = 16;
+text.borderThickness = 2;
+text.update();
+text.position.set(0, y, 0.004);
+text.scale.set(0.070, 0.016, 1);
+node.add(text);
 	};
 
 	addSection("APPEARANCE", 0.27);
@@ -88120,7 +88136,7 @@ initMenu(controller){
 		this.viewer.setPointBudget(v);
 		this.refreshMenuState();
 	});
-	controls.pointBudgetValue = this.createMenuButton("Point budget: 0", 0.00, 0.20, 0.30, 0.040, () => {});
+	controls.pointBudgetValue = this.createMenuButton("Budget: 0", 0.00, 0.20, 0.30, 0.040, () => {});
 	controls.pointBudgetPlus = this.createMenuButton("+", 0.22, 0.20, 0.05, 0.038, () => {
 		let v = Math.min(50000000, this.viewer.getPointBudget() + 1000000);
 		this.viewer.setPointBudget(v);
@@ -88132,7 +88148,7 @@ initMenu(controller){
 		this.viewer.setFOV(v);
 		this.refreshMenuState();
 	});
-	controls.fovValue = this.createMenuButton("Field of view: 0", 0.00, 0.14, 0.30, 0.040, () => {});
+	controls.fovValue = this.createMenuButton("FOV: 0", 0.00, 0.14, 0.30, 0.040, () => {});
 	controls.fovPlus = this.createMenuButton("+", 0.22, 0.14, 0.05, 0.038, () => {
 		let v = Math.min(100, this.viewer.fov + 5);
 		this.viewer.setFOV(v);

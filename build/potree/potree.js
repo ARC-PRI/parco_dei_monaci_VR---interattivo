@@ -87885,40 +87885,28 @@ updateMenuPose(){
 		return;
 	}
 
-	// camera XR reale dell'headset
-	let xrCam = this.viewer.renderer.xr.getCamera(fakeCam);
-	xrCam.updateMatrixWorld(true);
+	let cam = this.getCamera();
 
-	// posizione e orientamento della testa in coordinate XR
-	const headPosXR = xrCam.getWorldPosition(new Vector3());
-	const headQuatXR = xrCam.getWorldQuaternion(new Quaternion());
+	cam.updateMatrix();
+	cam.updateMatrixWorld();
 
-	// assi riferiti a ciò che stai guardando
-	const forwardXR = new Vector3(0, 0, -1).applyQuaternion(headQuatXR).normalize();
-	const upXR = new Vector3(0, 1, 0).applyQuaternion(headQuatXR).normalize();
-	const rightXR = new Vector3(1, 0, 0).applyQuaternion(headQuatXR).normalize();
+	const forward = new Vector3(0, -1, 0).applyQuaternion(cam.quaternion).normalize();
+	const right = new Vector3(1, 0, 0).applyQuaternion(cam.quaternion).normalize();
+	const up = new Vector3(0, 0, 1).applyQuaternion(cam.quaternion).normalize();
 
-	// conversione nel sistema scena Potree usando il tuo metodo di classe
-	const headPosScene = this.toScene(headPosXR);
-	const forwardScene = this.toScene(headPosXR.clone().add(forwardXR)).sub(headPosScene).normalize();
-	const upScene = this.toScene(headPosXR.clone().add(upXR)).sub(headPosScene).normalize();
-	const rightScene = this.toScene(headPosXR.clone().add(rightXR)).sub(headPosScene).normalize();
-
-	// offset del pannello rispetto alla vista
-	let pos = headPosScene.clone()
-		.add(rightScene.clone().multiplyScalar(this.menuOffset.x))
-		.add(upScene.clone().multiplyScalar(this.menuOffset.y))
-		.add(forwardScene.clone().multiplyScalar(this.menuOffset.z));
+	let pos = cam.position.clone()
+		.add(forward.multiplyScalar(0.75))
+		.add(right.multiplyScalar(-0.38))
+		.add(up.multiplyScalar(0.02));
 
 	this.menu.position.copy(pos);
 
-	// il pannello guarda sempre verso l'utente
-	this.menu.lookAt(headPosScene);
+	let target = cam.position.clone()
+		.add(new Vector3(0, -1, 0).applyQuaternion(cam.quaternion).normalize().multiplyScalar(1.0))
+		.add(right.multiplyScalar(-0.20));
 
-	this.menu.updateMatrix();
-	this.menu.updateMatrixWorld(true);
+	this.menu.lookAt(target);
 }
-
 
 handleMenuToggleInput(){
 	let controller = this.cSecondary;
@@ -87929,7 +87917,6 @@ handleMenuToggleInput(){
 
 	let gp = controller.inputSource.gamepad;
 
-	// X sul controller sinistro
 	let pressed = gp.buttons[4] && gp.buttons[4].pressed;
 
 	if(pressed && !this.menuPressLock){

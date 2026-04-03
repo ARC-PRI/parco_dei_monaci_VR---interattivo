@@ -51833,8 +51833,8 @@
 			this.add(this.sprite);
 
 			this.borderThickness = 4;
-			this.fontface = 'Arial';
-			this.fontsize = 28;
+			this.fontface = 'Segoe UI';
+			this.fontsize = 18;
 			this.borderColor = { r: 0, g: 0, b: 0, a: 1.0 };
 			this.backgroundColor = { r: 255, g: 255, b: 255, a: 1.0 };
 			this.textColor = {r: 255, g: 255, b: 255, a: 1.0};
@@ -51872,7 +51872,7 @@
 		update(){
 			let canvas = document.createElement('canvas');
 			let context = canvas.getContext('2d');
-			context.font = 'Bold ' + this.fontsize + 'px ' + this.fontface;
+			context.font = this.fontsize + 'px ' + this.fontface;
 
 			// get size data (height depends only on font size)
 			let metrics = context.measureText(this.text);

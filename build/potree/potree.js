@@ -87900,6 +87900,7 @@ redrawMenu(){
 		ctx.fillText(button.label, x + 58, y + buttonH / 2);
 	}
 
+
 	ctx.textAlign = "left";
 	ctx.textBaseline = "alphabetic";
 	ctx.fillStyle = "rgba(170, 190, 215, 0.92)";

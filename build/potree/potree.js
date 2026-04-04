@@ -88035,7 +88035,6 @@ onStart(){
 		if(this.menuState){
 			this.menuState.dirty = true;
 		}
-		this.updateMenuPose();
 	}
 }
 

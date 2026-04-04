@@ -88169,6 +88169,7 @@ node.add(title);
 		bg.position.set(0, y, 0.001);
 		node.add(bg);
 
+
 		let text = new Potree.TextSprite(label);
 this.configureMenuTextSprite(text, {
 	fontface: "Arial",

@@ -87784,23 +87784,23 @@ createMenuButton(label, x, y, width, height, onClick){
 		new MeshBasicMaterial({
 			color: 0x223344,
 			transparent: true,
-			opacity: 0.96,
+			opacity: 1.0,
 			side: DoubleSide,
 			depthTest: false
 		})
 	);
 
 	let text = new Potree.TextSprite(label);
-	text.fontface = "Tahoma";
-	text.fontsize = 18;
+	text.fontface = "Segoe UI";
+	text.fontsize = 11;
 	text.borderThickness = 2;
 	text.update();
 	text.position.set(0, 0, 0.004);
 
 	if(label === "+" || label === "-"){
-		text.scale.set(0.018, 0.018, 1);
+		text.scale.set(0.018, 0.021, 1);
 	}else{
-		text.scale.set(0.052, 0.017, 1);
+		text.scale.set(0.072, 0.021, 1);
 	}
 
 	group.add(bg);
@@ -88078,16 +88078,16 @@ initMenu(controller){
 
 	this.menuController = controller;
 
-	let node = new Object3D();
+		let node = new Object3D();
 	node.name = "vr menu";
 	node.visible = false;
 
 	let panel = new Mesh(
-		new PlaneGeometry(0.58, 0.78),
+		new PlaneGeometry(0.52, 0.73),
 		new MeshBasicMaterial({
 			color: 0x0f1b24,
 			transparent: true,
-			opacity: 0.97,
+			opacity: 1.0,
 			side: DoubleSide,
 			depthTest: false
 		})
@@ -88095,23 +88095,23 @@ initMenu(controller){
 	node.add(panel);
 
 	let title = new Potree.TextSprite("POTREE VR");
-title.fontface = "Tahoma";
-title.fontsize = 20;
-title.borderThickness = 2;
-title.update();
-title.position.set(0, 0.34, 0.004);
-title.scale.set(0.080, 0.017, 1);
-node.add(title);
+	title.fontface = "Segoe UI";
+	title.fontsize = 14;
+	title.borderThickness = 2;
+	title.update();
+	title.position.set(0, 0.315, 0.004);
+	title.scale.set(0.110, 0.024, 1);
+	node.add(title);
 
 	let controls = {};
 
 	const addSection = (label, y) => {
 		let bg = new Mesh(
-			new PlaneGeometry(0.50, 0.042),
+			new PlaneGeometry(0.42, 0.042),
 			new MeshBasicMaterial({
 				color: 0x30424e,
 				transparent: true,
-				opacity: 0.98,
+				opacity: 1.0,
 				side: DoubleSide,
 				depthTest: false
 			})
@@ -88120,13 +88120,13 @@ node.add(title);
 		node.add(bg);
 
 		let text = new Potree.TextSprite(label);
-text.fontface = "Tahoma";
-text.fontsize = 16;
-text.borderThickness = 2;
-text.update();
-text.position.set(0, y, 0.004);
-text.scale.set(0.070, 0.016, 1);
-node.add(text);
+		text.fontface = "Segoe UI";
+		text.fontsize = 13;
+		text.borderThickness = 2;
+		text.update();
+		text.position.set(0, y, 0.004);
+		text.scale.set(0.095, 0.022, 1);
+		node.add(text);
 	};
 
 	addSection("APPEARANCE", 0.27);

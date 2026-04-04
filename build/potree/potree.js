@@ -87792,15 +87792,15 @@ createMenuButton(label, x, y, width, height, onClick){
 
 	let text = new Potree.TextSprite(label);
 	text.fontface = "Segoe UI";
-	text.fontsize = 11;
+	text.fontsize = 16;
 	text.borderThickness = 2;
 	text.update();
 	text.position.set(0, 0, 0.004);
 
 	if(label === "+" || label === "-"){
-		text.scale.set(0.018, 0.021, 1);
+		text.scale.set(0.028, 0.034, 1);
 	}else{
-		text.scale.set(0.072, 0.021, 1);
+		text.scale.set(0.105, 0.034, 1);
 	}
 
 	group.add(bg);
@@ -87983,9 +87983,9 @@ updateMenuPose(){
 	const up      = new Vector3(0, 1, 0).applyQuaternion(headQuat).normalize();
 
 	let pos = headPos.clone()
-	.add(forward.clone().multiplyScalar(0.62))
-	.add(right.clone().multiplyScalar(0.20))
-	.add(up.clone().multiplyScalar(-0.01));
+		.add(forward.clone().multiplyScalar(0.72))
+		.add(right.clone().multiplyScalar(0.20))
+		.add(up.clone().multiplyScalar(-0.01));
 
 	this.menu.position.copy(pos);
 
@@ -88096,11 +88096,11 @@ initMenu(controller){
 
 	let title = new Potree.TextSprite("POTREE VR");
 	title.fontface = "Segoe UI";
-	title.fontsize = 14;
+	title.fontsize = 18;
 	title.borderThickness = 2;
 	title.update();
 	title.position.set(0, 0.315, 0.004);
-	title.scale.set(0.110, 0.024, 1);
+	title.scale.set(0.135, 0.032, 1);
 	node.add(title);
 
 	let controls = {};
@@ -88121,11 +88121,11 @@ initMenu(controller){
 
 		let text = new Potree.TextSprite(label);
 		text.fontface = "Segoe UI";
-		text.fontsize = 13;
+		text.fontsize = 15;
 		text.borderThickness = 2;
 		text.update();
 		text.position.set(0, y, 0.004);
-		text.scale.set(0.095, 0.022, 1);
+		text.scale.set(0.110, 0.028, 1);
 		node.add(text);
 	};
 
@@ -88203,6 +88203,8 @@ initMenu(controller){
 	node.userData.controls = controls;
 
 	this.viewer.sceneVR.add(node);
+
+	node.scale.set(0.72, 0.72, 0.72);
 
 	this.menu = node;
 	window.vrMenu = node;

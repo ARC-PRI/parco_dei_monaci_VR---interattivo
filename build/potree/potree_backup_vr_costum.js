@@ -51833,8 +51833,8 @@
 			this.add(this.sprite);
 
 			this.borderThickness = 4;
-			this.fontface = 'Arial';
-			this.fontsize = 28;
+			this.fontface = 'Segoe UI';
+			this.fontsize = 18;
 			this.borderColor = { r: 0, g: 0, b: 0, a: 1.0 };
 			this.backgroundColor = { r: 255, g: 255, b: 255, a: 1.0 };
 			this.textColor = {r: 255, g: 255, b: 255, a: 1.0};
@@ -51872,7 +51872,7 @@
 		update(){
 			let canvas = document.createElement('canvas');
 			let context = canvas.getContext('2d');
-			context.font = 'Bold ' + this.fontsize + 'px ' + this.fontface;
+			context.font = this.fontsize + 'px ' + this.fontface;
 
 			// get size data (height depends only on font size)
 			let metrics = context.measureText(this.text);
@@ -71560,20 +71560,21 @@ void main() {
 			this.scenePointCloud.add( light );
 
 			{ // background
-				let texture = Utils.createBackgroundTexture(512, 512);
+	let texture = Utils.createBackgroundTexture(512, 512);
 
-				texture.minFilter = texture.magFilter = NearestFilter;
-				texture.minFilter = texture.magFilter = LinearFilter;
-				let bg = new Mesh(
-					new PlaneBufferGeometry(2, 2, 1),
-					new MeshBasicMaterial({
-						map: texture
-					})
-				);
-				bg.material.depthTest = false;
-				bg.material.depthWrite = false;
-				this.sceneBG.add(bg);
-			}
+	texture.minFilter = texture.magFilter = NearestFilter;
+	texture.minFilter = texture.magFilter = LinearFilter;
+	let bg = new Mesh(
+		new PlaneBufferGeometry(2, 2, 1),
+		new MeshBasicMaterial({
+			map: texture
+		})
+	);
+	bg.material.depthTest = false;
+	bg.material.depthWrite = false;
+	this.sceneBG.add(bg);
+}
+			
 
 			// { // lights
 			// 	{
@@ -87188,34 +87189,251 @@ ENDSEC
 
 	} )();
 
-	
-	function toScene(vec, ref){
-		let node = ref.clone();
-		node.updateMatrix();
-		node.updateMatrixWorld();
+	let fakeCam = new PerspectiveCamera();
 
-		let result = vec.clone().applyMatrix4(node.matrix);
-		result.z -= 0.8 * node.scale.x;
+function toScene(vec, ref){
+	let node = ref.clone();
+	node.updateMatrix();
+	node.updateMatrixWorld();
 
-		return result;
-	};
+	let result = vec.clone().applyMatrix4(node.matrix);
+	result.z -= 0.8 * node.scale.x;
 
-	class FlyMode{
-
-	constructor(vrControls){
-		this.moveFactor = 1;
-	}
-
-	start(vrControls){
-	}
-
-	end(){
-	}
-
-	update(vrControls, delta){
-	}
+	return result;
 };
 
+function getThumbstickAxes(controller){
+
+	if(!controller || !controller.inputSource || !controller.inputSource.gamepad){
+		return null;
+	}
+
+	let pad = controller.inputSource.gamepad;
+	let axes = pad.axes || [];
+
+	let x = 0;
+	let y = 0;
+
+	if(axes.length >= 4){
+		x = axes[2];
+		y = axes[3];
+	}else if(axes.length >= 2){
+		x = axes[0];
+		y = axes[1];
+	}else{
+		return null;
+	}
+
+	const DEADZONE = 0.15;
+
+	if(Math.abs(x) < DEADZONE){ x = 0; }
+	if(Math.abs(y) < DEADZONE){ y = 0; }
+
+	return {x: x, y: y};
+}
+
+function getSceneMoveFactors(vrControls){
+
+	let maxSize = 0;
+	for(let pc of viewer.scene.pointclouds){
+		let size = pc.boundingBox.min.distanceTo(pc.boundingBox.max);
+		maxSize = Math.max(maxSize, size);
+	}
+
+	let multiplicator = Math.pow(maxSize, 0.5) / 2;
+	let scale = vrControls.node.scale.x;
+	let moveSpeed = viewer.getMoveSpeed();
+
+	return {
+		multiplicator: multiplicator,
+		scale: scale,
+		moveSpeed: moveSpeed
+	};
+}
+
+function getHorizontalViewAxes(vrControls){
+
+	let camVR = vrControls.viewer.renderer.xr.getCamera(fakeCam);
+
+	let vrPos = camVR.getWorldPosition(new Vector3());
+	let vrDir = camVR.getWorldDirection(new Vector3());
+
+	// porto direzione e posizione nel sistema scena Potree
+	let scenePos = toScene(vrPos, vrControls.node);
+	let sceneLook = toScene(vrPos.clone().add(vrDir), vrControls.node);
+
+	let forward = sceneLook.sub(scenePos);
+	forward.z = 0;
+
+	if(forward.lengthSq() === 0){
+		forward.set(0, 1, 0);
+	}
+
+	forward.normalize();
+
+	// asse destro coerente col punto di vista
+	let right = new Vector3().crossVectors(forward, new Vector3(0, 0, 1)).normalize();
+
+	return {forward: forward, right: right};
+}
+
+function computeLeftStickMove(vrControls){
+
+	let controller = vrControls.cPrimary;
+	let stick = getThumbstickAxes(controller);
+
+	if(!stick){
+		return new Vector3();
+	}
+
+	let y = Math.sign(stick.y) * Math.pow(Math.abs(stick.y), 2);
+
+	let factors = getSceneMoveFactors(vrControls);
+
+	const verticalBoost = 1.8;
+
+	let amountVertical = verticalBoost
+		* factors.multiplicator
+		* y
+		* Math.pow(factors.moveSpeed, 0.5)
+		/ factors.scale;
+
+	let move = new Vector3();
+	move.add(new Vector3(0, 0, amountVertical));
+
+	return move;
+}
+
+function computeLeftStickTurn(vrControls){
+
+	let controller = vrControls.cPrimary;
+	let stick = getThumbstickAxes(controller);
+
+	if(!stick){
+		return 0;
+	}
+
+	const TURN_DEADZONE = 0.15;
+	const TURN_SPEED = 1.8;
+
+	let x = stick.x;
+
+	if(Math.abs(x) < TURN_DEADZONE){
+		return 0;
+	}
+
+	let turn = Math.sign(x) * Math.pow(Math.abs(x), 2) * TURN_SPEED;
+
+	return turn;
+}
+
+function computeRightStickMove(vrControls){
+
+	let controller = vrControls.cSecondary;
+	let stick = getThumbstickAxes(controller);
+
+	if(!stick){
+		return new Vector3();
+	}
+
+	let x = Math.sign(stick.x) * Math.pow(Math.abs(stick.x), 2);
+	let y = Math.sign(stick.y) * Math.pow(Math.abs(stick.y), 2);
+
+	let factors = getSceneMoveFactors(vrControls);
+	let axes = getHorizontalViewAxes(vrControls);
+
+	const rightStickSpeedBoost = 5; // aumenta qui: 2.0, 2.5, 3.0...
+
+	let amountForward = rightStickSpeedBoost
+		* factors.multiplicator
+		* y
+		* Math.pow(factors.moveSpeed, 0.5)
+		/ factors.scale;
+
+	let amountStrafe = rightStickSpeedBoost
+		* factors.multiplicator
+		* x
+		* Math.pow(factors.moveSpeed, 0.5)
+		/ factors.scale;
+
+	let move = new Vector3();
+
+	// su = avanti rispetto a dove guardi
+	move.add(axes.forward.clone().multiplyScalar(amountForward));
+
+	// destra = destra rispetto a dove guardi
+	move.add(axes.right.clone().multiplyScalar(amountStrafe));
+
+	return move;
+}
+
+class FlyMode{
+
+		constructor(vrControls){
+			this.moveFactor = 1;
+			this.dbgLabel = null;
+		}
+
+		start(vrControls){
+			if(!this.dbgLabel){
+				this.dbgLabel = new Potree.TextSprite("abc");
+				this.dbgLabel.name = "debug label";
+				vrControls.viewer.sceneVR.add(this.dbgLabel);
+				this.dbgLabel.visible = false;
+			}
+		}
+		
+		end(){
+
+		}
+
+		update(vrControls, delta){
+
+			let primary = vrControls.cPrimary;
+
+let moveLeft = computeLeftStickMove(vrControls);
+let moveRight = computeRightStickMove(vrControls);
+
+let move = moveLeft.clone().add(moveRight);
+
+move.multiplyScalar(-delta * this.moveFactor);
+vrControls.node.position.add(move);
+
+let smoothTurn = computeLeftStickTurn(vrControls);
+
+if(smoothTurn !== 0){
+	vrControls.node.rotateOnWorldAxis(
+		new Vector3(0, 0, 1),
+		-smoothTurn * delta
+	);
+	vrControls.node.updateMatrix();
+	vrControls.node.updateMatrixWorld();
+}
+			
+
+			let scale = vrControls.node.scale.x;
+
+			let camVR = vrControls.viewer.renderer.xr.getCamera(fakeCam);
+			
+			let vrPos = camVR.getWorldPosition(new Vector3());
+			let vrDir = camVR.getWorldDirection(new Vector3());
+			let vrTarget = vrPos.clone().add(vrDir.multiplyScalar(scale));
+
+			let scenePos = toScene(vrPos, vrControls.node);
+			let sceneDir = toScene(vrPos.clone().add(vrDir), vrControls.node).sub(scenePos);
+			sceneDir.normalize().multiplyScalar(scale);
+			let sceneTarget = scenePos.clone().add(sceneDir);
+
+			vrControls.viewer.scene.view.setView(scenePos, sceneTarget);
+
+			if(Potree.debug.message){
+				this.dbgLabel.visible = true;
+				this.dbgLabel.setText(Potree.debug.message);
+				this.dbgLabel.scale.set(0.1, 0.1, 0.1);
+				this.dbgLabel.position.copy(primary.position);
+			}
+		}
+	};
 
 	class TranslationMode{
 
@@ -87386,6 +87604,16 @@ ENDSEC
 			}
 
 			this.menu = null;
+this.menuButtons = [];
+this.menuVisible = false;
+this.menuHovered = null;
+this.menuPressLock = false;
+this.menuController = null;
+this.menuOffset = new Vector3(-0.18, -0.05, -0.12);
+this.tmpVec = new Vector3();
+this.tmpVec2 = new Vector3();
+this.tmpRaycaster = new Raycaster();
+this.menuOffset = new Vector3(-0.30, -0.05, 0.75);
 
 			const controllerModelFactory = new XRControllerModelFactory();
 
@@ -87547,43 +87775,445 @@ ENDSEC
 			return infoNode;
 		}
 
-		initMenu(controller){
+configureMenuTextSprite(sprite, options = {}){
+	const {
+		fontface = "Arial",
+		fontsize = 28,
+		scale = 0.034
+	} = options;
 
-			if(this.menu){
-				return;
-			}
+	sprite.fontface = fontface;
+	sprite.fontsize = fontsize;
+	sprite.borderThickness = 0;
+	sprite.backgroundColor = { r: 0, g: 0, b: 0, a: 0.0 };
+	sprite.borderColor = { r: 0, g: 0, b: 0, a: 0.0 };
+	sprite.textColor = { r: 255, g: 255, b: 255, a: 1.0 };
 
-			let node = new Object3D("vr menu");
+	sprite.update();
+	sprite.position.set(0, 0, 0.004);
+	sprite.scale.set(scale, scale, 1);
 
-			// let nSlider = this.createSlider("speed", 0, 1);
-			// let nInfo = this.createInfo();
+	if(sprite.material){
+		sprite.material.transparent = true;
+		sprite.material.depthTest = false;
+		sprite.material.depthWrite = false;
+	}
 
-			// // node.add(nSlider);
-			// node.add(nInfo);
+	if(sprite.material && sprite.material.map){
+		sprite.material.map.generateMipmaps = false;
+		sprite.material.map.minFilter = LinearFilter;
+		sprite.material.map.magFilter = LinearFilter;
+		sprite.material.map.needsUpdate = true;
+	}
 
-			// {
-			// 	node.rotation.set(-1.5, 0, 0)
-			// 	node.scale.set(0.3, 0.3, 0.3);
-			// 	node.position.set(-0.2, -0.002, -0.1)
+	return sprite;
+}
 
-			// 	// nInfo.position.set(0.5, 0, 0);
-			// 	nInfo.scale.set(0.8, 0.6, 0);
+createMenuButton(label, x, y, width, height, onClick){
+	let group = new Object3D();
 
-			// 	// controller.add(node);
-			// }
+	let bg = new Mesh(
+		new PlaneGeometry(width, height),
+		new MeshBasicMaterial({
+			color: 0x223344,
+			transparent: true,
+			opacity: 1.0,
+			side: DoubleSide,
+			depthTest: false
+		})
+	);
 
-			// node.position.set(-0.3, 1.2, 0.2);
-			// node.scale.set(0.3, 0.2, 0.3);
-			// node.lookAt(new THREE.Vector3(0, 1.5, 0.1));
+	let displayLabel = label;
 
-			// this.viewer.sceneVR.add(node);
+	if(label === "-"){
+		displayLabel = "−";
+	}else if(label === "+"){
+		displayLabel = "+";
+	}
 
-			this.menu = node;
+	let text = new Potree.TextSprite(displayLabel);
 
-			// window.vrSlider = nSlider;
-			window.vrMenu = node;
+	if(label === "+" || label === "-"){
+		this.configureMenuTextSprite(text, {
+			fontface: "Arial",
+			fontsize: 40,
+			scale: 0.042
+		});
+	}else{
+		this.configureMenuTextSprite(text, {
+			fontface: "Arial",
+			fontsize: 28,
+			scale: 0.032
+		});
+	}
 
+	group.add(bg);
+	group.add(text);
+
+	group.position.set(x, y, 0);
+	group.userData.bg = bg;
+	group.userData.text = text;
+	group.userData.label = label;
+	group.userData.onClick = onClick;
+
+	this.menuButtons.push(group);
+
+	return group;
+}
+setButtonLabel(button, label){
+	button.userData.label = label;
+	button.userData.text.setText(label);
+}
+
+setAllPointSizes(value){
+	for(let pc of this.viewer.scene.pointclouds){
+		if(pc.material){
+			pc.material.size = value;
 		}
+	}
+}
+
+getCurrentPointSize(){
+	let pc = this.viewer.scene.pointclouds[0];
+	if(pc && pc.material){
+		return pc.material.size ?? 2.0;
+	}
+	return 2.0;
+}
+
+getCurrentPointSizeTypeLabel(){
+	let pc = this.viewer.scene.pointclouds[0];
+	if(!pc || !pc.material){
+		return "Fixed";
+	}
+
+	let t = pc.material.pointSizeType;
+
+	if(t === PointSizeType.ATTENUATED){
+		return "Attenuated";
+	}else if(t === PointSizeType.ADAPTIVE){
+		return "Adaptive";
+	}else{
+		return "Fixed";
+	}
+}
+
+cyclePointSizeType(){
+	let pc = this.viewer.scene.pointclouds[0];
+	if(!pc || !pc.material){
+		return;
+	}
+
+	const values = [
+		PointSizeType.FIXED,
+		PointSizeType.ATTENUATED,
+		PointSizeType.ADAPTIVE
+	];
+
+	let current = pc.material.pointSizeType;
+	let index = values.indexOf(current);
+	index = (index + 1) % values.length;
+	let next = values[index];
+
+	for(let cloud of this.viewer.scene.pointclouds){
+		if(cloud.material){
+			cloud.material.pointSizeType = next;
+		}
+	}
+
+	this.refreshMenuState();
+}
+
+getBackgroundLabel(){
+	let bg = this.viewer.background;
+
+	if(bg === null){
+		return "None";
+	}
+
+	if(bg === "gradient") return "Gradient";
+	if(bg === "skybox") return "Skybox";
+	if(bg === "black") return "Black";
+	if(bg === "white") return "White";
+
+	return `${bg}`;
+}
+
+refreshMenuState(){
+	if(!this.menu || !this.menu.userData.controls){
+		return;
+	}
+
+	let controls = this.menu.userData.controls;
+
+	if(controls.pointBudgetValue){
+		this.setButtonLabel(
+			controls.pointBudgetValue,
+			`Budget: ${Math.round(this.viewer.getPointBudget()).toLocaleString()}`
+		);
+	}
+
+	if(controls.pointSizeValue){
+		this.setButtonLabel(
+			controls.pointSizeValue,
+			`Point size: ${this.getCurrentPointSize().toFixed(1)}`
+		);
+	}
+
+	if(controls.pointSizeTypeValue){
+		this.setButtonLabel(
+			controls.pointSizeTypeValue,
+			`Size mode: ${this.getCurrentPointSizeTypeLabel()}`
+		);
+	}
+
+	if(controls.backgroundValue){
+		this.setButtonLabel(
+			controls.backgroundValue,
+			`Background: ${this.getBackgroundLabel()}`
+		);
+	}
+}
+
+cycleBackground(){
+	const values = ["skybox", "gradient", "black", "white", null];
+	const current = this.viewer.background ?? null;
+	let index = values.indexOf(current);
+	index = (index + 1) % values.length;
+	this.viewer.setBackground(values[index]);
+	this.refreshMenuState();
+}
+
+toggleMenu(){
+	if(!this.menu){
+		return;
+	}
+
+	this.menuVisible = !this.menuVisible;
+	this.menu.visible = this.menuVisible;
+
+	if(this.menuVisible){
+		this.refreshMenuState();
+		this.updateMenuPose();
+	}
+}
+
+updateMenuPose(){
+	if(!this.menu || !this.viewer || !this.viewer.renderer || !this.viewer.renderer.xr){
+		return;
+	}
+
+	let xrCam = this.viewer.renderer.xr.getCamera(new PerspectiveCamera());
+
+	if(!xrCam){
+		return;
+	}
+
+	xrCam.updateMatrixWorld(true);
+
+	const headPos = xrCam.getWorldPosition(new Vector3());
+	const headQuat = xrCam.getWorldQuaternion(new Quaternion());
+
+	const forward = new Vector3(0, 0, -1).applyQuaternion(headQuat).normalize();
+	const right   = new Vector3(1, 0, 0).applyQuaternion(headQuat).normalize();
+	const up      = new Vector3(0, 1, 0).applyQuaternion(headQuat).normalize();
+
+	let pos = headPos.clone()
+		.add(forward.clone().multiplyScalar(0.82))
+		.add(right.clone().multiplyScalar(0.20))
+		.add(up.clone().multiplyScalar(-0.01));
+
+	this.menu.position.copy(pos);
+
+	// il fronte del pannello guarda verso la testa
+	this.menu.quaternion.copy(headQuat);
+
+	// ruota di 180° così il lato frontale dei plane guarda l’utente
+	this.menu.rotateY(Math.PI);
+
+	this.menu.updateMatrix();
+	this.menu.updateMatrixWorld(true);
+}
+
+handleMenuToggleInput(){
+	let controller = this.cSecondary;
+
+	if(!controller || !controller.inputSource || !controller.inputSource.gamepad){
+		return;
+	}
+
+	let gp = controller.inputSource.gamepad;
+
+	// evita stick press e grilletti
+	let pressed =
+		(gp.buttons[5] && gp.buttons[5].pressed) ||
+		(gp.buttons[4] && gp.buttons[4].pressed);
+
+	if(pressed && !this.menuPressLock){
+		this.menuPressLock = true;
+		this.toggleMenu();
+	}
+
+	if(!pressed){
+		this.menuPressLock = false;
+	}
+}
+
+updateMenuInteraction(){
+	if(!this.menu || !this.menuVisible || !this.cPrimary){
+		return;
+	}
+
+	let controller = this.cPrimary;
+
+	const origin = new Vector3();
+	const direction = new Vector3(0, 0, -1);
+
+	controller.updateMatrixWorld(true);
+	origin.setFromMatrixPosition(controller.matrixWorld);
+	direction.applyQuaternion(controller.getWorldQuaternion(new Quaternion())).normalize();
+
+	this.tmpRaycaster.set(origin, direction);
+	this.tmpRaycaster.near = 0.01;
+	this.tmpRaycaster.far = 2.0;
+
+	let meshes = this.menuButtons.map(b => b.userData.bg);
+	let intersections = this.tmpRaycaster.intersectObjects(meshes, false);
+
+	if(this.menuHovered){
+		this.menuHovered.material.color.setHex(0x223344);
+		this.menuHovered = null;
+	}
+
+	if(intersections.length > 0){
+		let hit = intersections[0].object;
+		hit.material.color.setHex(0x66aaff);
+		this.menuHovered = hit;
+	}
+}
+
+pressHoveredButton(){
+	if(!this.menuHovered){
+		return false;
+	}
+
+	let button = this.menuButtons.find(b => b.userData.bg === this.menuHovered);
+	if(button && button.userData.onClick){
+		button.userData.onClick();
+		return true;
+	}
+
+	return false;
+}
+
+initMenu(controller){
+
+	if(this.menu){
+		return;
+	}
+
+	this.menuController = controller;
+
+	let node = new Object3D();
+	node.name = "vr menu";
+	node.visible = false;
+
+	let panel = new Mesh(
+		new PlaneGeometry(0.52, 0.50),
+		new MeshBasicMaterial({
+			color: 0x0f1b24,
+			transparent: true,
+			opacity: 1.0,
+			side: DoubleSide,
+			depthTest: false
+		})
+	);
+	node.add(panel);
+
+	let title = new Potree.TextSprite("POTREE VR");
+	this.configureMenuTextSprite(title, {
+		fontface: "Arial",
+		fontsize: 30,
+		scale: 0.040
+	});
+	title.position.set(0, 0.19, 0.004);
+	node.add(title);
+
+	let controls = {};
+
+	const addSection = (label, y) => {
+		let bg = new Mesh(
+			new PlaneGeometry(0.42, 0.042),
+			new MeshBasicMaterial({
+				color: 0x30424e,
+				transparent: true,
+				opacity: 1.0,
+				side: DoubleSide,
+				depthTest: false
+			})
+		);
+		bg.position.set(0, y, 0.001);
+		node.add(bg);
+
+		let text = new Potree.TextSprite(label);
+		this.configureMenuTextSprite(text, {
+			fontface: "Arial",
+			fontsize: 26,
+			scale: 0.036
+		});
+		text.position.set(0, y, 0.004);
+		node.add(text);
+	};
+
+	addSection("APPEARANCE", 0.12);
+
+	controls.pointBudgetMinus = this.createMenuButton("-", -0.22, 0.05, 0.05, 0.038, () => {
+		let v = Math.max(1000000, this.viewer.getPointBudget() - 1000000);
+		this.viewer.setPointBudget(v);
+		this.refreshMenuState();
+	});
+	controls.pointBudgetValue = this.createMenuButton("Budget: 0", 0.00, 0.05, 0.30, 0.040, () => {});
+	controls.pointBudgetPlus = this.createMenuButton("+", 0.22, 0.05, 0.05, 0.038, () => {
+		let v = Math.min(50000000, this.viewer.getPointBudget() + 1000000);
+		this.viewer.setPointBudget(v);
+		this.refreshMenuState();
+	});
+
+	controls.pointSizeMinus = this.createMenuButton("-", -0.22, -0.01, 0.05, 0.038, () => {
+		let s = Math.max(0.5, this.getCurrentPointSize() - 0.1);
+		this.setAllPointSizes(s);
+		this.refreshMenuState();
+	});
+	controls.pointSizeValue = this.createMenuButton("Point size: 0", 0.00, -0.01, 0.30, 0.040, () => {});
+	controls.pointSizePlus = this.createMenuButton("+", 0.22, -0.01, 0.05, 0.038, () => {
+		let s = Math.min(10, this.getCurrentPointSize() + 0.1);
+		this.setAllPointSizes(s);
+		this.refreshMenuState();
+	});
+
+	controls.pointSizeTypeValue = this.createMenuButton("Size mode: Fixed", 0.00, -0.08, 0.42, 0.042, () => {
+		this.cyclePointSizeType();
+	});
+
+	controls.backgroundValue = this.createMenuButton("Background: gradient", 0.00, -0.15, 0.42, 0.042, () => {
+		this.cycleBackground();
+	});
+
+	for(let key of Object.keys(controls)){
+		node.add(controls[key]);
+	}
+
+	node.userData.controls = controls;
+
+	this.viewer.sceneVR.add(node);
+
+	node.scale.set(0.72, 0.72, 0.72);
+
+	this.menu = node;
+	window.vrMenu = node;
+
+	this.refreshMenuState();
+}
 
 
 		toScene(vec){
@@ -87630,16 +88260,24 @@ ENDSEC
 		}
 
 		onTriggerStart(controller){
-			this.triggered.add(controller);
 
-			if(this.triggered.size === 0){
-				this.setMode(this.mode_fly);
-			}else if(this.triggered.size === 1){
-				this.setMode(this.mode_translate);
-			}else if(this.triggered.size === 2){
-				this.setMode(this.mode_rotScale);
-			}
+	if(this.menuVisible && controller === this.cPrimary){
+		let consumed = this.pressHoveredButton();
+		if(consumed){
+			return;
 		}
+	}
+
+	this.triggered.add(controller);
+
+	if(this.triggered.size === 0){
+		this.setMode(this.mode_fly);
+	}else if(this.triggered.size === 1){
+		this.setMode(this.mode_translate);
+	}else if(this.triggered.size === 2){
+		this.setMode(this.mode_rotScale);
+	}
+}
 
 		onTriggerEnd(controller){
 			this.triggered.delete(controller);
@@ -87653,23 +88291,31 @@ ENDSEC
 			}
 		}
 
-		onStart(){
+onStart(){
 
-			let position = this.viewer.scene.view.position.clone();
-			let direction = this.viewer.scene.view.direction;
-			direction.multiplyScalar(-1);
+	let position = this.viewer.scene.view.position.clone();
+	let direction = this.viewer.scene.view.direction;
+	direction.multiplyScalar(-1);
 
-			let target = position.clone().add(direction);
-			target.z = position.z;
+	let target = position.clone().add(direction);
+	target.z = position.z;
 
-			let scale = this.viewer.getMoveSpeed();
+	let scale = this.viewer.getMoveSpeed();
 
-			this.node.position.copy(position);
-			this.node.lookAt(target);
-			this.node.scale.set(scale, scale, scale);
-			this.node.updateMatrix();
-			this.node.updateMatrixWorld();
-		}
+	this.node.position.copy(position);
+	this.node.lookAt(target);
+	this.node.scale.set(scale, scale, scale);
+	this.node.updateMatrix();
+	this.node.updateMatrixWorld();
+
+	this.menuVisible = true;
+
+	if(this.menu){
+		this.menu.visible = true;
+		this.refreshMenuState();
+		this.updateMenuPose();
+	}
+}
 
 		onEnd(){
 			
@@ -87709,26 +88355,19 @@ ENDSEC
 
 		update(delta){
 
-			
+	this.handleMenuToggleInput();
 
-			// if(this.mode === this.mode_fly){
-			// 	let ray = new THREE.Ray(origin, direction);
-				
-			// 	for(let object of this.selectables){
+	if(this.menu){
+		this.updateMenuPose();
+	}
 
-			// 		if(object.intersectsRay(ray)){
-			// 			object.onHit(ray);
-			// 		}
+	if(this.menuVisible){
+		this.updateMenuInteraction();
+	}
 
-			// 	}
+	this.mode.update(this, delta);
+}
 
-			// }
-
-			this.mode.update(this, delta);
-
-			
-
-		}
 	};
 
 	// Adapted from three.js VRButton

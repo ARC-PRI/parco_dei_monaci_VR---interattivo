@@ -87775,6 +87775,42 @@ this.menuOffset = new Vector3(-0.30, -0.05, 0.75);
 			return infoNode;
 		}
 
+configureMenuTextSprite(sprite, options = {}){
+	const {
+		fontface = "Arial",
+		fontsize = 28,
+		scaleX = 0.12,
+		scaleY = 0.04
+	} = options;
+
+	sprite.fontface = fontface;
+	sprite.fontsize = fontsize;
+	sprite.borderThickness = 0;
+
+	// rimuove sfondo e bordo del canvas interno
+	sprite.backgroundColor = { r: 0, g: 0, b: 0, a: 0.0 };
+	sprite.borderColor = { r: 0, g: 0, b: 0, a: 0.0 };
+	sprite.textColor = { r: 255, g: 255, b: 255, a: 1.0 };
+
+	sprite.update();
+	sprite.position.set(0, 0, 0.004);
+	sprite.scale.set(scaleX, scaleY, 1);
+
+	if(sprite.material){
+		sprite.material.transparent = true;
+		sprite.material.depthTest = false;
+		sprite.material.depthWrite = false;
+	}
+
+	if(sprite.material && sprite.material.map){
+		sprite.material.map.generateMipmaps = false;
+		sprite.material.map.minFilter = LinearFilter;
+		sprite.material.map.magFilter = LinearFilter;
+		sprite.material.map.needsUpdate = true;
+	}
+
+	return sprite;
+}
 
 createMenuButton(label, x, y, width, height, onClick){
 	let group = new Object3D();
@@ -87790,17 +87826,31 @@ createMenuButton(label, x, y, width, height, onClick){
 		})
 	);
 
-	let text = new Potree.TextSprite(label);
-	text.fontface = "Segoe UI";
-	text.fontsize = 22;
-	text.borderThickness = 2;
-	text.update();
-	text.position.set(0, 0, 0.004);
+	let displayLabel = label;
+
+	// glifi più leggibili
+	if(label === "-"){
+		displayLabel = "−";
+	}else if(label === "+"){
+		displayLabel = "+";
+	}
+
+	let text = new Potree.TextSprite(displayLabel);
 
 	if(label === "+" || label === "-"){
-		text.scale.set(0.040, 0.050, 1);
+		this.configureMenuTextSprite(text, {
+			fontface: "Arial",
+			fontsize: 36,
+			scaleX: 0.020,
+			scaleY: 0.040
+		});
 	}else{
-		text.scale.set(0.150, 0.050, 1);
+		this.configureMenuTextSprite(text, {
+			fontface: "Arial",
+			fontsize: 30,
+			scaleX: 0.125,
+			scaleY: 0.040
+		});
 	}
 
 	group.add(bg);
@@ -87816,7 +87866,6 @@ createMenuButton(label, x, y, width, height, onClick){
 
 	return group;
 }
-
 setButtonLabel(button, label){
 	button.userData.label = label;
 	button.userData.text.setText(label);
@@ -88095,13 +88144,14 @@ initMenu(controller){
 	node.add(panel);
 
 	let title = new Potree.TextSprite("POTREE VR");
-	title.fontface = "Segoe UI";
-	title.fontsize = 24;
-	title.borderThickness = 2;
-	title.update();
-	title.position.set(0, 0.315, 0.004);
-	title.scale.set(0.165, 0.046, 1);
-	node.add(title);
+this.configureMenuTextSprite(title, {
+	fontface: "Arial",
+	fontsize: 34,
+	scaleX: 0.160,
+	scaleY: 0.050
+});
+title.position.set(0, 0.315, 0.004);
+node.add(title);
 
 	let controls = {};
 
@@ -88120,14 +88170,14 @@ initMenu(controller){
 		node.add(bg);
 
 		let text = new Potree.TextSprite(label);
-		text.fontface = "Segoe UI";
-		text.fontsize = 18;
-		text.borderThickness = 2;
-		text.update();
-		text.position.set(0, y, 0.004);
-		text.scale.set(0.135, 0.038, 1);
-		node.add(text);
-	};
+this.configureMenuTextSprite(text, {
+	fontface: "Arial",
+	fontsize: 30,
+	scaleX: 0.135,
+	scaleY: 0.042
+});
+text.position.set(0, y, 0.004);
+node.add(text);
 
 	addSection("APPEARANCE", 0.27);
 

@@ -87779,22 +87779,19 @@ configureMenuTextSprite(sprite, options = {}){
 	const {
 		fontface = "Arial",
 		fontsize = 28,
-		scaleX = 0.12,
-		scaleY = 0.04
+		scale = 0.034
 	} = options;
 
 	sprite.fontface = fontface;
 	sprite.fontsize = fontsize;
 	sprite.borderThickness = 0;
-
-	// rimuove sfondo e bordo del canvas interno
 	sprite.backgroundColor = { r: 0, g: 0, b: 0, a: 0.0 };
 	sprite.borderColor = { r: 0, g: 0, b: 0, a: 0.0 };
 	sprite.textColor = { r: 255, g: 255, b: 255, a: 1.0 };
 
 	sprite.update();
 	sprite.position.set(0, 0, 0.004);
-	sprite.scale.set(scaleX, scaleY, 1);
+	sprite.scale.set(scale, scale, 1);
 
 	if(sprite.material){
 		sprite.material.transparent = true;
@@ -87828,7 +87825,6 @@ createMenuButton(label, x, y, width, height, onClick){
 
 	let displayLabel = label;
 
-	// glifi più leggibili
 	if(label === "-"){
 		displayLabel = "−";
 	}else if(label === "+"){
@@ -87840,16 +87836,14 @@ createMenuButton(label, x, y, width, height, onClick){
 	if(label === "+" || label === "-"){
 		this.configureMenuTextSprite(text, {
 			fontface: "Arial",
-			fontsize: 36,
-			scaleX: 0.020,
-			scaleY: 0.040
+			fontsize: 40,
+			scale: 0.042
 		});
 	}else{
 		this.configureMenuTextSprite(text, {
 			fontface: "Arial",
-			fontsize: 30,
-			scaleX: 0.125,
-			scaleY: 0.040
+			fontsize: 28,
+			scale: 0.032
 		});
 	}
 
@@ -87952,40 +87946,33 @@ refreshMenuState(){
 
 	let controls = this.menu.userData.controls;
 
-	this.setButtonLabel(
-		controls.pointBudgetValue,
-		`Budget: ${Math.round(this.viewer.getPointBudget()).toLocaleString()}`
-	);
+	if(controls.pointBudgetValue){
+		this.setButtonLabel(
+			controls.pointBudgetValue,
+			`Budget: ${Math.round(this.viewer.getPointBudget()).toLocaleString()}`
+		);
+	}
 
-	this.setButtonLabel(
-		controls.fovValue,
-		`FOV: ${Math.round(this.viewer.fov)}`
-	);
+	if(controls.pointSizeValue){
+		this.setButtonLabel(
+			controls.pointSizeValue,
+			`Point size: ${this.getCurrentPointSize().toFixed(1)}`
+		);
+	}
 
-	this.setButtonLabel(
-		controls.pointSizeValue,
-		`Point size: ${this.getCurrentPointSize().toFixed(1)}`
-	);
+	if(controls.pointSizeTypeValue){
+		this.setButtonLabel(
+			controls.pointSizeTypeValue,
+			`Size mode: ${this.getCurrentPointSizeTypeLabel()}`
+		);
+	}
 
-	this.setButtonLabel(
-		controls.pointSizeTypeValue,
-		`Size mode: ${this.getCurrentPointSizeTypeLabel()}`
-	);
-
-	this.setButtonLabel(
-		controls.backgroundValue,
-		`Background: ${this.getBackgroundLabel()}`
-	);
-
-	this.setButtonLabel(
-		controls.edlToggle,
-		`EDL: ${this.viewer.getEDLEnabled() ? "ON" : "OFF"}`
-	);
-
-	this.setButtonLabel(
-		controls.speedValue,
-		`Move speed: ${this.viewer.getMoveSpeed().toFixed(1)}`
-	);
+	if(controls.backgroundValue){
+		this.setButtonLabel(
+			controls.backgroundValue,
+			`Background: ${this.getBackgroundLabel()}`
+		);
+	}
 }
 
 cycleBackground(){
@@ -88127,12 +88114,12 @@ initMenu(controller){
 
 	this.menuController = controller;
 
-		let node = new Object3D();
+	let node = new Object3D();
 	node.name = "vr menu";
 	node.visible = false;
 
 	let panel = new Mesh(
-		new PlaneGeometry(0.52, 0.73),
+		new PlaneGeometry(0.52, 0.50),
 		new MeshBasicMaterial({
 			color: 0x0f1b24,
 			transparent: true,
@@ -88144,14 +88131,13 @@ initMenu(controller){
 	node.add(panel);
 
 	let title = new Potree.TextSprite("POTREE VR");
-this.configureMenuTextSprite(title, {
-	fontface: "Arial",
-	fontsize: 34,
-	scaleX: 0.160,
-	scaleY: 0.050
-});
-title.position.set(0, 0.315, 0.004);
-node.add(title);
+	this.configureMenuTextSprite(title, {
+		fontface: "Arial",
+		fontsize: 30,
+		scale: 0.040
+	});
+	title.position.set(0, 0.19, 0.004);
+	node.add(title);
 
 	let controls = {};
 
@@ -88169,82 +88155,48 @@ node.add(title);
 		bg.position.set(0, y, 0.001);
 		node.add(bg);
 
-
 		let text = new Potree.TextSprite(label);
-this.configureMenuTextSprite(text, {
-	fontface: "Arial",
-	fontsize: 30,
-	scaleX: 0.135,
-	scaleY: 0.042
-});
-text.position.set(0, y, 0.004);
-node.add(text);
-};
-	addSection("APPEARANCE", 0.27);
+		this.configureMenuTextSprite(text, {
+			fontface: "Arial",
+			fontsize: 26,
+			scale: 0.036
+		});
+		text.position.set(0, y, 0.004);
+		node.add(text);
+	};
 
-	controls.pointBudgetMinus = this.createMenuButton("-", -0.22, 0.20, 0.05, 0.038, () => {
+	addSection("APPEARANCE", 0.12);
+
+	controls.pointBudgetMinus = this.createMenuButton("-", -0.22, 0.05, 0.05, 0.038, () => {
 		let v = Math.max(1000000, this.viewer.getPointBudget() - 1000000);
 		this.viewer.setPointBudget(v);
 		this.refreshMenuState();
 	});
-	controls.pointBudgetValue = this.createMenuButton("Budget: 0", 0.00, 0.20, 0.30, 0.040, () => {});
-	controls.pointBudgetPlus = this.createMenuButton("+", 0.22, 0.20, 0.05, 0.038, () => {
+	controls.pointBudgetValue = this.createMenuButton("Budget: 0", 0.00, 0.05, 0.30, 0.040, () => {});
+	controls.pointBudgetPlus = this.createMenuButton("+", 0.22, 0.05, 0.05, 0.038, () => {
 		let v = Math.min(50000000, this.viewer.getPointBudget() + 1000000);
 		this.viewer.setPointBudget(v);
 		this.refreshMenuState();
 	});
 
-	controls.fovMinus = this.createMenuButton("-", -0.22, 0.14, 0.05, 0.038, () => {
-		let v = Math.max(30, this.viewer.fov - 5);
-		this.viewer.setFOV(v);
-		this.refreshMenuState();
-	});
-	controls.fovValue = this.createMenuButton("FOV: 0", 0.00, 0.14, 0.30, 0.040, () => {});
-	controls.fovPlus = this.createMenuButton("+", 0.22, 0.14, 0.05, 0.038, () => {
-		let v = Math.min(100, this.viewer.fov + 5);
-		this.viewer.setFOV(v);
-		this.refreshMenuState();
-	});
-
-	controls.pointSizeMinus = this.createMenuButton("-", -0.22, 0.08, 0.05, 0.038, () => {
+	controls.pointSizeMinus = this.createMenuButton("-", -0.22, -0.01, 0.05, 0.038, () => {
 		let s = Math.max(0.5, this.getCurrentPointSize() - 0.1);
 		this.setAllPointSizes(s);
 		this.refreshMenuState();
 	});
-	controls.pointSizeValue = this.createMenuButton("Point size: 0", 0.00, 0.08, 0.30, 0.040, () => {});
-	controls.pointSizePlus = this.createMenuButton("+", 0.22, 0.08, 0.05, 0.038, () => {
+	controls.pointSizeValue = this.createMenuButton("Point size: 0", 0.00, -0.01, 0.30, 0.040, () => {});
+	controls.pointSizePlus = this.createMenuButton("+", 0.22, -0.01, 0.05, 0.038, () => {
 		let s = Math.min(10, this.getCurrentPointSize() + 0.1);
 		this.setAllPointSizes(s);
 		this.refreshMenuState();
 	});
 
-	controls.pointSizeTypeValue = this.createMenuButton("Size mode: Fixed", 0.00, 0.02, 0.42, 0.042, () => {
+	controls.pointSizeTypeValue = this.createMenuButton("Size mode: Fixed", 0.00, -0.08, 0.42, 0.042, () => {
 		this.cyclePointSizeType();
 	});
 
-	controls.backgroundValue = this.createMenuButton("Background: gradient", 0.00, -0.04, 0.42, 0.042, () => {
+	controls.backgroundValue = this.createMenuButton("Background: gradient", 0.00, -0.15, 0.42, 0.042, () => {
 		this.cycleBackground();
-	});
-
-	addSection("RENDERING", -0.12);
-
-	controls.edlToggle = this.createMenuButton("EDL: OFF", 0.00, -0.19, 0.42, 0.042, () => {
-		this.viewer.setEDLEnabled(!this.viewer.getEDLEnabled());
-		this.refreshMenuState();
-	});
-
-	addSection("NAVIGATION", -0.27);
-
-	controls.speedMinus = this.createMenuButton("-", -0.22, -0.34, 0.05, 0.038, () => {
-		let v = Math.max(1, this.viewer.getMoveSpeed() - 1);
-		this.viewer.setMoveSpeed(v);
-		this.refreshMenuState();
-	});
-	controls.speedValue = this.createMenuButton("Move speed: 0", 0.00, -0.34, 0.30, 0.040, () => {});
-	controls.speedPlus = this.createMenuButton("+", 0.22, -0.34, 0.05, 0.038, () => {
-		let v = Math.min(300, this.viewer.getMoveSpeed() + 1);
-		this.viewer.setMoveSpeed(v);
-		this.refreshMenuState();
 	});
 
 	for(let key of Object.keys(controls)){

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="description" content="PARCO_DEI_MONACI">
+  <meta name="author" content="ARCANGELO PRIORE">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Potree Viewer – PARCO DEI MONACI</title>
+
+  <link rel="stylesheet" href="./build/potree/potree.css">
+  <link rel="stylesheet" href="./libs/jquery-ui/jquery-ui.min.css">
+  <link rel="stylesheet" href="./libs/openlayers3/ol.css">
+  <link rel="stylesheet" href="./libs/spectrum/spectrum.css">
+  <link rel="stylesheet" href="./libs/jstree/themes/mixed/style.css">
+</head>
+
+<body>
+
+  <div class="potree_container" style="position:absolute; width:100%; height:100%; left:0; top:0;">
+    <div id="potree_render_area"
+         style="background-image:url('./build/potree/resources/images/NUOVO_LOGO_FAI.jpg');">
+    </div>
+    <div id="potree_sidebar_container"></div>
+  </div>
+
+  <script src="./libs/jquery/jquery-3.1.1.min.js"></script>
+  <script src="./libs/jquery-ui/jquery-ui.min.js"></script>
+  <script src="./libs/spectrum/spectrum.js"></script>
+  <script src="./libs/other/BinaryHeap.js"></script>
+  <script src="./libs/tween/tween.min.js"></script>
+  <script src="./libs/d3/d3.js"></script>
+  <script src="./libs/proj4/proj4.js"></script>
+  <script src="./libs/openlayers3/ol.js"></script>
+  <script src="./libs/i18next/i18next.js"></script>
+  <script src="./libs/jstree/jstree.js"></script>
+  <script src="./libs/plasio/js/laslaz.js"></script>
+  <script src="./build/potree/potree.js"></script>
+
+  <script>
+    window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
+
+    viewer.setEDLEnabled(true);
+    viewer.setFOV(60);
+    viewer.setPointBudget(12000000);
+    viewer.loadSettingsFromURL();
+    viewer.setDescription("Parco dei Monaci - PointCloud");
+
+    viewer.loadGUI(() => {
+      viewer.setLanguage("en");
+      $("#menu_appearance").next().show();
+    });
+
+    function addPointSizeSliderToAppearance(material) {
+      const $appearancePanel = $("#menu_appearance").next();
+
+      if ($appearancePanel.length === 0) {
+        setTimeout(() => addPointSizeSliderToAppearance(material), 200);
+        return;
+      }
+
+      $("#ap_pointsize_block").remove();
+
+      const typeToValue = t =>
+        t === Potree.PointSizeType.ATTENUATED ? "ATTENUATED" :
+        t === Potree.PointSizeType.ADAPTIVE ? "ADAPTIVE" :
+        "FIXED";
+
+      const valueToType = v =>
+        v === "ATTENUATED" ? Potree.PointSizeType.ATTENUATED :
+        v === "ADAPTIVE" ? Potree.PointSizeType.ADAPTIVE :
+        Potree.PointSizeType.FIXED;
+
+      const block = $(`
+        <div class="pv-menu-list" id="ap_pointsize_block">
+          <div class="pv-menu-entry">
+
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span>Point size</span>
+              <span id="ap_pointsize_val">${material.size.toFixed(1)}</span>
+            </div>
+
+            <div id="ap_pointsize_slider" style="margin:0 4px;"></div>
+
+            <div id="ap_pointsize_note"
+                 style="margin-top:6px; font-size:11px; color:#999; display:none;">
+              controlled by distance
+            </div>
+
+            <div style="display:flex; justify-content:space-between; margin-top:8px;">
+              <span>Size mode</span>
+              <select id="ap_pointsize_type" style="width:140px;">
+                <option value="FIXED">Fixed</option>
+                <option value="ATTENUATED">Attenuated</option>
+                <option value="ADAPTIVE">Adaptive</option>
+              </select>
+            </div>
+
+          </div>
+        </div>
+      `);
+
+      const $fovBlock = $appearancePanel.find(".pv-menu-list").first();
+      $fovBlock.after(block);
+
+      $("#ap_pointsize_type").val(typeToValue(material.pointSizeType));
+
+      $("#ap_pointsize_slider").slider({
+        min: 0.5,
+        max: 10,
+        step: 0.1,
+        value: material.size,
+        slide: function (e, ui) {
+          material.size = ui.value;
+          $("#ap_pointsize_val").text(ui.value.toFixed(1));
+        }
+      });
+
+      function applyMode(mode) {
+        const $slider = $("#ap_pointsize_slider");
+        const $note = $("#ap_pointsize_note");
+
+        if (mode === "ATTENUATED") {
+          $slider.slider("disable");
+          $note.show();
+          return;
+        }
+
+        $slider.slider("enable");
+        $note.hide();
+
+        if (mode === "ADAPTIVE") {
+          $slider.slider("option", "max", 3);
+
+          if ($slider.slider("value") > 3) {
+            $slider.slider("value", 3);
+            material.size = 3;
+            $("#ap_pointsize_val").text("3.0");
+          }
+        } else {
+          $slider.slider("option", "max", 10);
+        }
+      }
+
+      applyMode(typeToValue(material.pointSizeType));
+
+      $("#ap_pointsize_type").on("change", function () {
+        const mode = $(this).val();
+        material.pointSizeType = valueToType(mode);
+        applyMode(mode);
+      });
+    }
+
+    Potree.loadPointCloud(
+      "pointclouds/parco_dei_monaci/cloud.js",
+      "Parco dei Monaci - PointCloud",
+      function (e) {
+        const pc = e.pointcloud;
+        const mat = pc.material;
+
+        mat.activeAttributeName = "rgba";
+        mat.size = 2.0;
+        mat.minSize = 2;
+        mat.pointSizeType = Potree.PointSizeType.FIXED;
+
+        viewer.scene.addPointCloud(pc);
+        viewer.fitToScreen();
+
+        addPointSizeSliderToAppearance(mat);
+      }
+    );
+  </script>
+
+</body>
+</html>

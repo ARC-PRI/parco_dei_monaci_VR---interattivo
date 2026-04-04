@@ -5,22 +5,99 @@
   <meta name="description" content="PARCO_DEI_MONACI">
   <meta name="author" content="ARCANGELO PRIORE">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Potree Viewer – PARCO DEI MONACI</title>
+  <title>Potree Viewer – PARCO DEI MONACI – XR MVP</title>
 
   <link rel="stylesheet" href="./build/potree/potree.css">
   <link rel="stylesheet" href="./libs/jquery-ui/jquery-ui.min.css">
   <link rel="stylesheet" href="./libs/openlayers3/ol.css">
   <link rel="stylesheet" href="./libs/spectrum/spectrum.css">
   <link rel="stylesheet" href="./libs/jstree/themes/mixed/style.css">
+
+  <style>
+    #potree_render_area {
+      background-image: url('./build/potree/resources/images/NUOVO_LOGO_FAI.jpg');
+    }
+
+    #xr_hud {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 10000;
+      width: min(420px, calc(100vw - 28px));
+      color: #fff;
+      background: rgba(0, 0, 0, 0.72);
+      border-radius: 12px;
+      padding: 12px;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+      backdrop-filter: blur(6px);
+    }
+
+    #xr_hud h1 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    #xr_hud .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    #xr_hud button {
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      background: #2f2f2f;
+      color: #fff;
+      font-size: 13px;
+    }
+
+    #xr_hud button.active {
+      outline: 2px solid #7fd0ff;
+    }
+
+    #xr_status {
+      white-space: pre-line;
+      font-size: 13px;
+      line-height: 1.4;
+      margin-top: 6px;
+    }
+
+    #xr_hud .note {
+      font-size: 12px;
+      color: #cfcfcf;
+      line-height: 1.4;
+      margin-top: 8px;
+    }
+  </style>
 </head>
 
 <body>
 
   <div class="potree_container" style="position:absolute; width:100%; height:100%; left:0; top:0;">
-    <div id="potree_render_area"
-         style="background-image:url('./build/potree/resources/images/NUOVO_LOGO_FAI.jpg');">
-    </div>
+    <div id="potree_render_area"></div>
     <div id="potree_sidebar_container"></div>
+  </div>
+
+  <div id="xr_hud">
+    <h1>Quest 3 XR Controls</h1>
+    <div class="row">
+      <button id="btn_enter_vr">Enter VR</button>
+      <button id="btn_mode_nav" class="active">Navigate</button>
+      <button id="btn_mode_measure">Measure</button>
+      <button id="btn_mode_clip">Clip Box</button>
+      <button id="btn_reset_box">Reset Box</button>
+      <button id="btn_clear_measures">Clear Measures</button>
+    </div>
+    <div id="xr_status"></div>
+    <div class="note">
+      Desktop debug: 1 Navigate, 2 Measure, 3 Clip Box, R Reset Box, C Clear Measures.<br>
+      Quest 3: right trigger = pick/action, left squeeze = move box to pointed point, right thumbstick = scale/rotate box.
+    </div>
   </div>
 
   <script src="./libs/jquery/jquery-3.1.1.min.js"></script>
@@ -37,13 +114,53 @@
   <script src="./build/potree/potree.js"></script>
 
   <script>
+    const XR_APP = {
+      mode: "navigate",
+      pointcloud: null,
+      clipBox: null,
+      isXR: false,
+      xrSession: null,
+      raycaster: new THREE.Raycaster(),
+      tempMatrix: new THREE.Matrix4(),
+      currentMeasurePoints: [],
+      customMarkers: [],
+      customMeasureObjects: [],
+      lastDistance: null,
+      leftSqueezeActive: false,
+      rightJustSelected: false,
+      lastTick: performance.now(),
+      config: {
+        cloudUrl: "pointclouds/parco_dei_monaci/cloud.js",
+        cloudName: "Parco dei Monaci - PointCloud",
+        xrFramebufferScaleFactor: 0.85,
+        pickThreshold: 0.15,
+        initialBoxSize: 4.0,
+        minBoxSize: 0.25,
+        maxBoxSize: 100.0,
+        boxScaleSpeed: 2.0,
+        boxRotateSpeed: 1.5,
+        markerRadius: 0.08,
+        rayLength: 8.0
+      }
+    };
+
+    const UI = {
+      enterVR: document.getElementById("btn_enter_vr"),
+      nav: document.getElementById("btn_mode_nav"),
+      measure: document.getElementById("btn_mode_measure"),
+      clip: document.getElementById("btn_mode_clip"),
+      resetBox: document.getElementById("btn_reset_box"),
+      clearMeasures: document.getElementById("btn_clear_measures"),
+      status: document.getElementById("xr_status")
+    };
+
     window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
 
     viewer.setEDLEnabled(true);
     viewer.setFOV(60);
     viewer.setPointBudget(12000000);
     viewer.loadSettingsFromURL();
-    viewer.setDescription("Parco dei Monaci - PointCloud");
+    viewer.setDescription("Parco dei Monaci - PointCloud - Quest 3 XR MVP");
 
     viewer.loadGUI(() => {
       viewer.setLanguage("en");
@@ -73,7 +190,6 @@
       const block = $(`
         <div class="pv-menu-list" id="ap_pointsize_block">
           <div class="pv-menu-entry">
-
             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
               <span>Point size</span>
               <span id="ap_pointsize_val">${material.size.toFixed(1)}</span>
@@ -81,8 +197,7 @@
 
             <div id="ap_pointsize_slider" style="margin:0 4px;"></div>
 
-            <div id="ap_pointsize_note"
-                 style="margin-top:6px; font-size:11px; color:#999; display:none;">
+            <div id="ap_pointsize_note" style="margin-top:6px; font-size:11px; color:#999; display:none;">
               controlled by distance
             </div>
 
@@ -94,7 +209,6 @@
                 <option value="ADAPTIVE">Adaptive</option>
               </select>
             </div>
-
           </div>
         </div>
       `);
@@ -130,7 +244,6 @@
 
         if (mode === "ADAPTIVE") {
           $slider.slider("option", "max", 3);
-
           if ($slider.slider("value") > 3) {
             $slider.slider("value", 3);
             material.size = 3;
@@ -150,12 +263,328 @@
       });
     }
 
+    function setMode(mode) {
+      XR_APP.mode = mode;
+      UI.nav.classList.toggle("active", mode === "navigate");
+      UI.measure.classList.toggle("active", mode === "measure_distance");
+      UI.clip.classList.toggle("active", mode === "clipbox");
+      updateStatus();
+    }
+
+    function updateStatus() {
+      const clipSize = XR_APP.clipBox ? XR_APP.clipBox.scale.x.toFixed(2) : "-";
+      const distance = XR_APP.lastDistance == null ? "-" : XR_APP.lastDistance.toFixed(3);
+      UI.status.textContent = [
+        `XR active: ${XR_APP.isXR ? "YES" : "NO"}`,
+        `Mode: ${XR_APP.mode}`,
+        `Pending measure points: ${XR_APP.currentMeasurePoints.length}`,
+        `Last distance: ${distance}`,
+        `Clip box size: ${clipSize}`
+      ].join("\n");
+    }
+
+    function addFeedbackMarker(position) {
+      const geo = new THREE.SphereGeometry(XR_APP.config.markerRadius, 12, 12);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(position);
+      viewer.scene.scene.add(mesh);
+      XR_APP.customMarkers.push(mesh);
+    }
+
+    function addMeasurePoint(point) {
+      XR_APP.currentMeasurePoints.push(point.clone());
+      addFeedbackMarker(point);
+
+      if (XR_APP.currentMeasurePoints.length === 2) {
+        const [p1, p2] = XR_APP.currentMeasurePoints;
+        const measure = new Potree.Measure();
+        measure.name = `XR Distance ${Date.now()}`;
+        measure.closed = false;
+        measure.showDistances = true;
+        measure.showCoordinates = false;
+        measure.showArea = false;
+        measure.showHeight = false;
+        measure.addMarker(p1);
+        measure.addMarker(p2);
+        viewer.scene.addMeasurement(measure);
+        XR_APP.customMeasureObjects.push(measure);
+        XR_APP.lastDistance = p1.distanceTo(p2);
+        XR_APP.currentMeasurePoints = [];
+      }
+
+      updateStatus();
+    }
+
+    function clearMeasures() {
+      XR_APP.currentMeasurePoints = [];
+      XR_APP.lastDistance = null;
+
+      XR_APP.customMarkers.forEach(marker => marker.parent && marker.parent.remove(marker));
+      XR_APP.customMarkers = [];
+
+      XR_APP.customMeasureObjects.forEach(measure => {
+        const index = viewer.scene.measurements.indexOf(measure);
+        if (index >= 0) {
+          viewer.scene.measurements.splice(index, 1);
+        }
+        if (measure.parent) {
+          measure.parent.remove(measure);
+        }
+      });
+      XR_APP.customMeasureObjects = [];
+
+      updateStatus();
+    }
+
+    function ensureClipBox() {
+      if (XR_APP.clipBox) return XR_APP.clipBox;
+
+      XR_APP.clipBox = new Potree.Volume();
+      XR_APP.clipBox.clip = true;
+      XR_APP.clipBox.visible = true;
+      viewer.scene.addVolume(XR_APP.clipBox);
+      viewer.setClipTask(Potree.ClipTask.SHOW_INSIDE);
+
+      return XR_APP.clipBox;
+    }
+
+    function getReasonableBoxCenter() {
+      const cam = viewer.scene.getActiveCamera();
+      if (!cam) return new THREE.Vector3(0, 0, 0);
+      const dir = new THREE.Vector3();
+      cam.getWorldDirection(dir);
+      return cam.position.clone().add(dir.multiplyScalar(5));
+    }
+
+    function resetClipBox() {
+      const box = ensureClipBox();
+      const s = XR_APP.config.initialBoxSize;
+      box.position.copy(getReasonableBoxCenter());
+      box.scale.set(s, s, s);
+      box.rotation.set(0, 0, 0);
+      updateStatus();
+    }
+
+    function getXRController(handedness) {
+      const scene = viewer.scene.scene;
+      const found = scene.children.find(obj => obj.userData && obj.userData.handedness === handedness);
+      return found || null;
+    }
+
+    function setupController(controller) {
+      const geometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 0, -XR_APP.config.rayLength)
+      ]);
+      const material = new THREE.LineBasicMaterial({ color: 0x7fd0ff });
+      const line = new THREE.Line(geometry, material);
+      line.name = "ray";
+      controller.add(line);
+
+      controller.addEventListener("connected", event => {
+        controller.userData.inputSource = event.data;
+        controller.userData.handedness = event.data.handedness || "unknown";
+      });
+
+      controller.addEventListener("disconnected", () => {
+        controller.userData.inputSource = null;
+      });
+
+      controller.addEventListener("selectstart", () => {
+        if (controller.userData.handedness === "right") {
+          XR_APP.rightJustSelected = true;
+        }
+      });
+
+      controller.addEventListener("squeezestart", () => {
+        if (controller.userData.handedness === "left") {
+          XR_APP.leftSqueezeActive = true;
+        }
+      });
+
+      controller.addEventListener("squeezeend", () => {
+        if (controller.userData.handedness === "left") {
+          XR_APP.leftSqueezeActive = false;
+        }
+      });
+    }
+
+    function initXRControllers() {
+      const renderer = viewer.renderer;
+      renderer.xr.enabled = true;
+      if (renderer.xr.setFramebufferScaleFactor) {
+        renderer.xr.setFramebufferScaleFactor(XR_APP.config.xrFramebufferScaleFactor);
+      }
+      if (renderer.xr.setReferenceSpaceType) {
+        renderer.xr.setReferenceSpaceType("local-floor");
+      }
+
+      const left = renderer.xr.getController(0);
+      const right = renderer.xr.getController(1);
+
+      setupController(left);
+      setupController(right);
+
+      viewer.scene.scene.add(left);
+      viewer.scene.scene.add(right);
+    }
+
+    async function enterVR() {
+      if (!navigator.xr) {
+        alert("WebXR non disponibile su questo browser/dispositivo.");
+        return;
+      }
+
+      try {
+        const session = await navigator.xr.requestSession("immersive-vr", {
+          optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"]
+        });
+
+        viewer.setEDLEnabled(false);
+        await viewer.renderer.xr.setSession(session);
+        XR_APP.xrSession = session;
+        XR_APP.isXR = true;
+
+        session.addEventListener("end", () => {
+          XR_APP.isXR = false;
+          XR_APP.xrSession = null;
+          viewer.setEDLEnabled(true);
+          updateStatus();
+        });
+
+        updateStatus();
+      } catch (error) {
+        console.error(error);
+        alert("Impossibile entrare in VR. Verifica HTTPS, Quest Browser e supporto WebXR.");
+      }
+    }
+
+    function getXRPointCloudHit(controller) {
+      if (!controller || !XR_APP.pointcloud) return null;
+
+      XR_APP.tempMatrix.identity().extractRotation(controller.matrixWorld);
+      XR_APP.raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+      XR_APP.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(XR_APP.tempMatrix).normalize();
+      XR_APP.raycaster.params.Points.threshold = XR_APP.config.pickThreshold;
+
+      const hits = XR_APP.raycaster.intersectObjects(viewer.scene.pointclouds, true);
+      if (!hits || hits.length === 0) return null;
+      return hits[0];
+    }
+
+    function updateClipBoxFromThumbstick(controller, dt) {
+      if (!XR_APP.clipBox) return;
+      const gamepad = controller && controller.userData && controller.userData.inputSource && controller.userData.inputSource.gamepad;
+      if (!gamepad) return;
+
+      const x = gamepad.axes && (gamepad.axes[2] ?? gamepad.axes[0]) || 0;
+      const y = gamepad.axes && (gamepad.axes[3] ?? gamepad.axes[1]) || 0;
+      const deadzone = 0.15;
+      const sx = Math.abs(x) > deadzone ? x : 0;
+      const sy = Math.abs(y) > deadzone ? y : 0;
+
+      if (sy !== 0) {
+        const current = XR_APP.clipBox.scale.x;
+        const next = Math.max(
+          XR_APP.config.minBoxSize,
+          Math.min(XR_APP.config.maxBoxSize, current + (-sy * XR_APP.config.boxScaleSpeed * dt * current))
+        );
+        XR_APP.clipBox.scale.set(next, next, next);
+      }
+
+      if (sx !== 0) {
+        XR_APP.clipBox.rotation.z += -sx * XR_APP.config.boxRotateSpeed * dt;
+      }
+    }
+
+    function onXRFrameUpdate() {
+      const now = performance.now();
+      const dt = Math.min(0.05, (now - XR_APP.lastTick) / 1000);
+      XR_APP.lastTick = now;
+
+      if (!XR_APP.isXR) {
+        updateStatus();
+        return;
+      }
+
+      const left = getXRController("left");
+      const right = getXRController("right");
+
+      if (XR_APP.mode === "measure_distance" && XR_APP.rightJustSelected && right) {
+        const hit = getXRPointCloudHit(right);
+        if (hit && hit.point) {
+          addMeasurePoint(hit.point.clone());
+        }
+        XR_APP.rightJustSelected = false;
+      }
+
+      if (XR_APP.mode === "clipbox") {
+        if (left && XR_APP.leftSqueezeActive) {
+          const hit = getXRPointCloudHit(left);
+          if (hit && hit.point) {
+            ensureClipBox().position.copy(hit.point);
+          }
+        }
+
+        if (right) {
+          updateClipBoxFromThumbstick(right, dt);
+        }
+      }
+
+      updateStatus();
+    }
+
+    function onDesktopPointerDown() {
+      if (XR_APP.isXR) return;
+      const mouse = viewer.inputHandler && viewer.inputHandler.mouse;
+      const camera = viewer.scene.getActiveCamera();
+      if (!mouse || !camera) return;
+
+      const hit = Potree.Utils.getMousePointCloudIntersection(
+        mouse,
+        camera,
+        viewer,
+        viewer.scene.pointclouds
+      );
+
+      if (!hit || !hit.location) return;
+
+      if (XR_APP.mode === "measure_distance") {
+        addMeasurePoint(hit.location.clone());
+      } else if (XR_APP.mode === "clipbox") {
+        ensureClipBox().position.copy(hit.location);
+        updateStatus();
+      }
+    }
+
+    function wireUI() {
+      UI.enterVR.addEventListener("click", enterVR);
+      UI.nav.addEventListener("click", () => setMode("navigate"));
+      UI.measure.addEventListener("click", () => setMode("measure_distance"));
+      UI.clip.addEventListener("click", () => setMode("clipbox"));
+      UI.resetBox.addEventListener("click", resetClipBox);
+      UI.clearMeasures.addEventListener("click", clearMeasures);
+
+      document.getElementById("potree_render_area").addEventListener("pointerdown", onDesktopPointerDown);
+
+      window.addEventListener("keydown", e => {
+        if (e.key === "1") setMode("navigate");
+        if (e.key === "2") setMode("measure_distance");
+        if (e.key === "3") setMode("clipbox");
+        if (e.key.toLowerCase() === "r") resetClipBox();
+        if (e.key.toLowerCase() === "c") clearMeasures();
+      });
+    }
+
     Potree.loadPointCloud(
-      "pointclouds/parco_dei_monaci/cloud.js",
-      "Parco dei Monaci - PointCloud",
+      XR_APP.config.cloudUrl,
+      XR_APP.config.cloudName,
       function (e) {
         const pc = e.pointcloud;
         const mat = pc.material;
+
+        XR_APP.pointcloud = pc;
 
         mat.activeAttributeName = "rgba";
         mat.size = 2.0;
@@ -166,6 +595,11 @@
         viewer.fitToScreen();
 
         addPointSizeSliderToAppearance(mat);
+        initXRControllers();
+        wireUI();
+        resetClipBox();
+        viewer.addEventListener("update", onXRFrameUpdate);
+        updateStatus();
       }
     );
   </script>

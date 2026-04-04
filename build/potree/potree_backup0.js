@@ -87335,7 +87335,7 @@ function computeRightStickMove(vrControls){
 		return new Vector3();
 	}
 
-	let x = -Math.sign(stick.x) * Math.pow(Math.abs(stick.x), 2);
+	let x = Math.sign(stick.x) * Math.pow(Math.abs(stick.x), 2);
 	let y = Math.sign(stick.y) * Math.pow(Math.abs(stick.y), 2);
 
 	let factors = getSceneMoveFactors(vrControls);

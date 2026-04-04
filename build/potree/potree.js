@@ -87335,7 +87335,7 @@ function computeRightStickMove(vrControls){
 		return new Vector3();
 	}
 
-	let x = -Math.sign(stick.x) * Math.pow(Math.abs(stick.x), 2);
+	let x = Math.sign(stick.x) * Math.pow(Math.abs(stick.x), 2);
 	let y = Math.sign(stick.y) * Math.pow(Math.abs(stick.y), 2);
 
 	let factors = getSceneMoveFactors(vrControls);
@@ -87766,183 +87766,42 @@ if(smoothTurn !== 0){
 
 		initMenu(controller){
 
-	if(this.menu){
-		return;
-	}
+			if(this.menu){
+				return;
+			}
 
-	let canvas = document.createElement("canvas");
-	canvas.width = 2048;
-	canvas.height = 384;
+			let node = new Object3D("vr menu");
 
-	let ctx = canvas.getContext("2d");
+			// let nSlider = this.createSlider("speed", 0, 1);
+			// let nInfo = this.createInfo();
 
-	let texture = new Texture(canvas);
-	texture.minFilter = LinearFilter;
-	texture.magFilter = LinearFilter;
-	texture.generateMipmaps = false;
-	texture.needsUpdate = true;
+			// // node.add(nSlider);
+			// node.add(nInfo);
 
-	let geometry = new PlaneBufferGeometry(0.52, 0.10, 1, 1);
-	let material = new MeshBasicMaterial({
-		map: texture,
-		transparent: true,
-		depthTest: false,
-		depthWrite: false,
-		side: DoubleSide,
-	});
+			// {
+			// 	node.rotation.set(-1.5, 0, 0)
+			// 	node.scale.set(0.3, 0.3, 0.3);
+			// 	node.position.set(-0.2, -0.002, -0.1)
 
-	let panel = new Mesh(geometry, material);
-	panel.renderOrder = 10000;
+			// 	// nInfo.position.set(0.5, 0, 0);
+			// 	nInfo.scale.set(0.8, 0.6, 0);
 
-	let node = new Object3D();
-	node.name = "vr menu";
-	node.visible = false;
-	node.add(panel);
+			// 	// controller.add(node);
+			// }
 
-	node.canvas = canvas;
-	node.ctx = ctx;
-	node.texture = texture;
-	node.panel = panel;
+			// node.position.set(-0.3, 1.2, 0.2);
+			// node.scale.set(0.3, 0.2, 0.3);
+			// node.lookAt(new THREE.Vector3(0, 1.5, 0.1));
 
-	this.menu = node;
-	this.menuState = {
-		active: "render",
-		dirty: true,
-	};
+			// this.viewer.sceneVR.add(node);
 
-	this.viewer.sceneVR.add(node);
-	this.redrawMenu();
+			this.menu = node;
 
-	window.vrMenu = node;
-}
+			// window.vrSlider = nSlider;
+			window.vrMenu = node;
 
-redrawMenu(){
+		}
 
-	if(!this.menu || !this.menu.ctx){
-		return;
-	}
-
-	let canvas = this.menu.canvas;
-	let ctx = this.menu.ctx;
-	let width = canvas.width;
-	let height = canvas.height;
-
-	ctx.clearRect(0, 0, width, height);
-
-	const roundRect = (x, y, w, h, r) => {
-		ctx.beginPath();
-		ctx.moveTo(x + r, y);
-		ctx.lineTo(x + w - r, y);
-		ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-		ctx.lineTo(x + w, y + h - r);
-		ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-		ctx.lineTo(x + r, y + h);
-		ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-		ctx.lineTo(x, y + r);
-		ctx.quadraticCurveTo(x, y, x + r, y);
-		ctx.closePath();
-	};
-
-	roundRect(24, 80, width - 48, 220, 42);
-	ctx.fillStyle = "rgba(8, 14, 22, 0.90)";
-	ctx.fill();
-	ctx.lineWidth = 4;
-	ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
-	ctx.stroke();
-
-	ctx.textAlign = "center";
-	ctx.fillStyle = "rgba(235, 245, 255, 0.96)";
-	ctx.font = "bold 52px sans-serif";
-	ctx.fillText("VR TOOLS", width / 2, 54);
-
-	let buttons = [
-		{key: "render", label: "Rendering"},
-		{key: "points", label: "Point Size"},
-		{key: "clip", label: "Clipping"},
-		{key: "measure", label: "measure"},
-	];
-
-	let gap = 24;
-	let startX = 60;
-	let y = 130;
-	let totalW = width - 120;
-	let buttonW = (totalW - gap * 3) / 4;
-	let buttonH = 120;
-
-	for(let i = 0; i < buttons.length; i++){
-		let button = buttons[i];
-		let x = startX + i * (buttonW + gap);
-		let active = this.menuState && this.menuState.active === button.key;
-
-		roundRect(x, y, buttonW, buttonH, 24);
-		ctx.fillStyle = active
-			? "rgba(70, 145, 255, 0.30)"
-			: "rgba(255, 255, 255, 0.05)";
-		ctx.fill();
-
-		ctx.lineWidth = 3;
-		ctx.strokeStyle = active
-			? "rgba(110, 180, 255, 0.90)"
-			: "rgba(255, 255, 255, 0.10)";
-		ctx.stroke();
-
-		ctx.beginPath();
-		ctx.arc(x + 34, y + buttonH / 2, 10, 0, Math.PI * 2);
-		ctx.fillStyle = active
-			? "rgba(110, 180, 255, 0.95)"
-			: "rgba(180, 200, 220, 0.80)";
-		ctx.fill();
-
-		ctx.textAlign = "left";
-		ctx.textBaseline = "middle";
-		ctx.fillStyle = "rgba(240, 248, 255, 0.95)";
-		ctx.font = "bold 34px sans-serif";
-		ctx.fillText(button.label, x + 58, y + buttonH / 2);
-	}
-
-
-	ctx.textAlign = "left";
-	ctx.textBaseline = "alphabetic";
-	ctx.fillStyle = "rgba(170, 190, 215, 0.92)";
-	ctx.font = "30px sans-serif";
-	ctx.fillText("Fase 2 · barra VR sempre attiva", 70, 340);
-
-	this.menu.texture.needsUpdate = true;
-
-	if(this.menuState){
-		this.menuState.dirty = false;
-	}
-}
-
-updateMenuPose(){
-
-	if(!this.menu){
-		return;
-	}
-
-	if(this.menuState && this.menuState.dirty){
-		this.redrawMenu();
-	}
-
-	let xrCamera = this.viewer.renderer.xr.getCamera(fakeCam);
-
-	if(!xrCamera){
-		return;
-	}
-
-	let headPos = xrCamera.getWorldPosition(new Vector3());
-	let headQuat = xrCamera.getWorldQuaternion(new Quaternion());
-
-	let forward = new Vector3(0, 0, -1).applyQuaternion(headQuat).normalize();
-	let up = new Vector3(0, 1, 0).applyQuaternion(headQuat).normalize();
-
-	let anchor = headPos.clone()
-		.add(forward.multiplyScalar(0.75))
-		.add(up.multiplyScalar(-0.28));
-
-	this.menu.position.copy(anchor);
-	this.menu.quaternion.copy(headQuat);
-}
 
 		toScene(vec){
 			let camVR = this.getCamera();
@@ -88011,38 +87870,32 @@ updateMenuPose(){
 			}
 		}
 
-onStart(){
+		onStart(){
 
-	let position = this.viewer.scene.view.position.clone();
-	let direction = this.viewer.scene.view.direction;
-	direction.multiplyScalar(-1);
+			let position = this.viewer.scene.view.position.clone();
+			let direction = this.viewer.scene.view.direction;
+			direction.multiplyScalar(-1);
 
-	let target = position.clone().add(direction);
-	target.z = position.z;
+			let target = position.clone().add(direction);
+			target.z = position.z;
 
-	let scale = this.viewer.getMoveSpeed();
+			let scale = this.viewer.getMoveSpeed();
 
-	this.node.position.copy(position);
-	this.node.lookAt(target);
-	this.node.scale.set(scale, scale, scale);
-	this.node.updateMatrix();
-	this.node.updateMatrixWorld();
-
-	this.initMenu();
-
-	if(this.menu){
-		this.menu.visible = true;
-		if(this.menuState){
-			this.menuState.dirty = true;
+			this.node.position.copy(position);
+			this.node.lookAt(target);
+			this.node.scale.set(scale, scale, scale);
+			this.node.updateMatrix();
+			this.node.updateMatrixWorld();
 		}
-	}
-}
 
-onEnd(){
-	if(this.menu){
-		this.menu.visible = false;
-	}
-}
+		onEnd(){
+			
+		}
+
+
+		setScene(scene){
+			this.scene = scene;
+		}
 
 		getCamera(){
 			let reference = this.viewer.scene.getActiveCamera();
@@ -88071,14 +87924,28 @@ onEnd(){
 			return camera;
 		}
 
-update(delta){
+		update(delta){
 
-	this.mode.update(this, delta);
+			
 
-	if(this.menu && this.menu.visible){
-		this.updateMenuPose();
-	}
-}
+			// if(this.mode === this.mode_fly){
+			// 	let ray = new THREE.Ray(origin, direction);
+				
+			// 	for(let object of this.selectables){
+
+			// 		if(object.intersectsRay(ray)){
+			// 			object.onHit(ray);
+			// 		}
+
+			// 	}
+
+			// }
+
+			this.mode.update(this, delta);
+
+			
+
+		}
 	};
 
 	// Adapted from three.js VRButton

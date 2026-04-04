@@ -88178,7 +88178,7 @@ this.configureMenuTextSprite(text, {
 });
 text.position.set(0, y, 0.004);
 node.add(text);
-
+};
 	addSection("APPEARANCE", 0.27);
 
 	controls.pointBudgetMinus = this.createMenuButton("-", -0.22, 0.20, 0.05, 0.038, () => {
